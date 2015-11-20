@@ -15336,7 +15336,7 @@ static void test_mysql_insert_id()
 
   myheader("test_mysql_insert_id");
 
-  rc= mysql_query(mysql, "drop table if exists t1");
+  rc= mysql_query(mysql, "drop table if exists t1,t2");
   myquery(rc);
   /* table without auto_increment column */
   rc= mysql_query(mysql, "create table t1 (f1 int, f2 varchar(255), key(f1))");
@@ -16186,6 +16186,10 @@ static void test_change_user()
   sprintf(buff, "drop database if exists %s", db);
   rc= mysql_query(mysql, buff);
   myquery(rc);
+  sprintf(buff, "set local sql_mode=''");
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
 
   sprintf(buff, "create database %s", db);
   rc= mysql_query(mysql, buff);
@@ -18671,7 +18675,7 @@ static void test_bug56976()
 }
 
 /*
-  Test that CLIENT_PROGRESS works.
+  Test that MARIADB_CLIENT_PROGRESS works.
 */
 
 uint progress_stage, progress_max_stage, progress_count;
@@ -18699,8 +18703,8 @@ static void test_progress_reporting()
 
   myheader("test_progress_reporting");
 
-  conn= client_connect(CLIENT_PROGRESS, MYSQL_PROTOCOL_TCP, 0);
-  DIE_UNLESS(conn->client_flag & CLIENT_PROGRESS);
+  conn= client_connect(MARIADB_CLIENT_PROGRESS, MYSQL_PROTOCOL_TCP, 0);
+  DIE_UNLESS(conn->client_flag & MARIADB_CLIENT_PROGRESS);
 
   mysql_options(conn, MYSQL_PROGRESS_CALLBACK, (void*) report_progress);
   rc= mysql_query(conn, "set @save=@@global.progress_report_time");
@@ -19390,6 +19394,7 @@ static void test_big_packet()
 
 
 static struct my_tests_st my_tests[]= {
+  { "test_change_user", test_change_user },
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },

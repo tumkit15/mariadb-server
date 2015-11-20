@@ -787,7 +787,7 @@ restart:
       uint last_errno=uint2korr(pos);
 
       if (last_errno == 65535 &&
-          (mysql->server_capabilities & CLIENT_PROGRESS))
+          (mysql->server_capabilities & MARIADB_CLIENT_PROGRESS))
       {
         if (cli_report_progress(mysql, pos+2, (uint) (len-3)))
         {
@@ -2614,7 +2614,8 @@ error:
     4           client capabilities
     4           max packet size
     1           charset number
-    23          reserved (always 0)
+    19          reserved (always 0)
+    4           client capabilities high bits (mariadb extension)
     n           user name, \0-terminated
     n           plugin auth data (e.g. scramble), length encoded
     n           database name, \0-terminated
@@ -2672,15 +2673,26 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   if (mysql->client_flag & CLIENT_PROTOCOL_41)
   {
     /* 4.1 server and 4.1 client has a 32 byte option flag */
-    int4store(buff,mysql->client_flag);
+    bzero(buff+9, 32-9);
+    if (mysql->server_capabilities & MARIADB_CLIENT_EXTENDED_FLAGS)
+    {
+      DBUG_ASSERT(mysql->client_flag & CLIENT_LONG_PASSWORD);
+      /*
+        first part of bytes - CLIENT_LONG_PASSWORD to signal mariadb extensions
+      */
+      mysql->client_flag|= MARIADB_CLIENT_EXTENDED_FLAGS;
+      int4store(buff, (mysql->client_flag & (~CLIENT_LONG_PASSWORD)));
+      int4store(buff + 28, (mysql->client_flag >> 32));
+    }
+    else
+      int4store(buff, mysql->client_flag);
     int4store(buff+4, net->max_packet_size);
     buff[8]= (char) mysql->charset->number;
-    bzero(buff+9, 32-9);
     end= buff+32;
   }
   else
   {
-    int2store(buff, mysql->client_flag);
+    int2store(buff, (mysql->client_flag & 0xffff));
     int3store(buff+2, net->max_packet_size);
     end= buff+5;
   }
@@ -2768,7 +2780,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   }
 #endif /* HAVE_OPENSSL */
 
-  DBUG_PRINT("info",("Server version = '%s'  capabilites: %lu  status: %u  client_flag: %lu",
+  DBUG_PRINT("info",("Server version = '%s'  capabilites: %llu  "
+                     "status: %u  client_flag: %llu",
 		     mysql->server_version, mysql->server_capabilities,
 		     mysql->server_status, mysql->client_flag));
 
@@ -3231,6 +3244,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  ulonglong     ext_server_capabilities= 0;
   int           scramble_data_len, UNINIT_VAR(pkt_scramble_len);
   char          *end,*host_info= 0, *server_version_end, *pkt_end;
   char          *scramble_data;
@@ -3631,6 +3645,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->server_language=end[2];
     mysql->server_status=uint2korr(end+3);
     mysql->server_capabilities|= uint2korr(end+5) << 16;
+    ext_server_capabilities|= ((ulonglong)uint4korr(end + 14)) << 32;
     pkt_scramble_len= end[7];
     if (pkt_scramble_len < 0)
     {
@@ -3682,7 +3697,20 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if ((mysql->server_capabilities & CLIENT_PLUGIN_AUTH) &&
       strncmp(mysql->server_version, RPL_VERSION_HACK,
               sizeof(RPL_VERSION_HACK) - 1) == 0)
+  {
     mysql->server_version+= sizeof(RPL_VERSION_HACK) - 1;
+    mysql->server_capabilities|= ext_server_capabilities;
+    if (!(mysql->server_capabilities & MARIADB_CLIENT_EXTENDED_FLAGS) &&
+        (mysql->client_flag & MARIADB_CLIENT_PROGRESS))
+    {
+      /* old mariadb fix progress flag */
+      mysql->client_flag|= CLIENT_PROGRESS_OBSOLETE;
+      if (mysql->server_capabilities & CLIENT_PROGRESS_OBSOLETE)
+      {
+        mysql->server_capabilities|= MARIADB_CLIENT_PROGRESS;
+      }
+    }
+  }
 
   if (pkt_end >= end + SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323 + 1)
   {

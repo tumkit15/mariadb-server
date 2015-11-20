@@ -326,7 +326,8 @@ mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
    
    @return pointer to initialized and connected MYSQL object
 */
-static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
+static MYSQL* client_connect(ulonglong flag, uint protocol,
+                             my_bool auto_reconnect)
 {
   MYSQL* mysql;
   int  rc;

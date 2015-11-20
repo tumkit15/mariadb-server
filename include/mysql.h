@@ -270,7 +270,7 @@ typedef struct st_mysql
   unsigned long thread_id;		/* Id for connection in server */
   unsigned long packet_length;
   unsigned int	port;
-  unsigned long client_flag,server_capabilities;
+  unsigned long long client_flag,server_capabilities;
   unsigned int	protocol_version;
   unsigned int	field_count;
   unsigned int 	server_status;
