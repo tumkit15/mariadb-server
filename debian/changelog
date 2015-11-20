@@ -1,3 +1,9 @@
+mariadb-10.2 (10.2.0) unstable; urgency=low
+
+  * Initial release.
+
+ -- Sergei Golubchik <serg@mariadb.org>  Fri, 20 Nov 2015 18:32:58 -0200
+
 mariadb-10.1 (10.1.0) unstable; urgency=low
 
   * Initial release.
