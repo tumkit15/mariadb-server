@@ -217,6 +217,90 @@ trx_release_descriptor(
 	trx_sys->descr_n_used--;
 }
 
+/********************************************************************//**
+Initialize transaction object.
+@param	trx	trx to initialize */
+static
+void
+trx_init(
+/*=====*/
+	trx_t*	trx)
+{
+	trx->id = 0;
+
+	trx->no = TRX_ID_MAX;
+
+	trx->state = TRX_STATE_NOT_STARTED;
+
+	trx->is_recovered = false;
+
+	trx->op_info = "";
+
+	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+	trx->check_foreigns = true;
+
+	trx->check_unique_secondary = true;
+
+	trx->support_xa = true;
+
+	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	trx->table_id = 0;
+
+	trx->error_state = DB_SUCCESS;
+
+	trx->undo_no = 0;
+
+	trx->rseg = NULL;
+
+	trx->read_only = false;
+
+	trx->auto_commit = false;
+
+	trx->will_lock = 0;
+
+	trx->ddl = false;
+
+	ut_d(trx->start_file = 0);
+
+	ut_d(trx->start_line = 0);
+
+	trx->magic_n = TRX_MAGIC_N;
+
+	trx->lock.que_state = TRX_QUE_RUNNING;
+
+	trx->last_sql_stat_start.least_undo_no = 0;
+
+	trx->active_commit_ordered = 0;
+
+	trx->api_trx = false;
+
+	trx->api_auto_commit = false;
+
+	trx->read_write = true;
+
+	trx->in_trx_serial_list = false;
+
+	trx->idle_start = 0;
+
+	trx->last_stmt_start = 0;
+
+	trx->io_reads = 0;
+	trx->io_read = 0;
+	trx->io_reads_wait_timer = 0;
+	trx->lock_que_wait_timer = 0;
+	trx->innodb_que_wait_timer = 0;
+	trx->distinct_page_access = 0;
+	trx->distinct_page_access_hash = NULL;
+	trx->take_stats = FALSE;
+#ifdef WITH_WSREP
+	trx->wsrep_event = NULL;
+#endif /* WITH_WSREP */
+}
+
 /****************************************************************//**
 Creates and initializes a transaction object. It must be explicitly
 started with trx_start_if_not_started() before using it. The default
@@ -235,57 +319,12 @@ trx_create(void)
 
 	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
 
-	trx->magic_n = TRX_MAGIC_N;
-
-	trx->active_commit_ordered = 0;
-	trx->state = TRX_STATE_NOT_STARTED;
-
-	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-	trx->no = TRX_ID_MAX;
-	trx->in_trx_serial_list = false;
-
-	trx->support_xa = TRUE;
-
-	trx->fake_changes = FALSE;
-
-	trx->check_foreigns = TRUE;
-	trx->check_unique_secondary = TRUE;
-
-	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	trx->idle_start = 0;
-	trx->last_stmt_start = 0;
-
 	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
-	trx->error_state = DB_SUCCESS;
-
-	trx->lock.que_state = TRX_QUE_RUNNING;
+	trx_init(trx);
 
 	trx->lock.lock_heap = mem_heap_create_typed(
 		256, MEM_HEAP_FOR_LOCK_HEAP);
-
-	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-
-	trx->io_reads = 0;
-	trx->io_read = 0;
-	trx->io_reads_wait_timer = 0;
-	trx->lock_que_wait_timer = 0;
-	trx->innodb_que_wait_timer = 0;
-	trx->distinct_page_access = 0;
-	trx->distinct_page_access_hash = NULL;
-	trx->take_stats = FALSE;
-
-	trx->xid.formatID = -1;
-
-	trx->op_info = "";
-
-	trx->api_trx = false;
-
-	trx->api_auto_commit = false;
-
-	trx->read_write = true;
 
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -299,9 +338,6 @@ trx_create(void)
 
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
-#ifdef WITH_WSREP
-	trx->wsrep_event = NULL;
-#endif /* WITH_WSREP */
 
 	return(trx);
 }
@@ -1544,39 +1580,17 @@ trx_commit_in_memory(
 	trx_named_savept_t*	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 	trx_roll_savepoints_free(trx, savep);
 
-	trx->rseg = NULL;
-	trx->undo_no = 0;
-	trx->last_sql_stat_start.least_undo_no = 0;
-
-	trx->ddl = false;
-#ifdef UNIV_DEBUG
-	ut_ad(trx->start_file != 0);
-	ut_ad(trx->start_line != 0);
-	trx->start_file = 0;
-	trx->start_line = 0;
-#endif /* UNIV_DEBUG */
-
-	trx->will_lock = 0;
-	trx->read_only = FALSE;
-	trx->auto_commit = FALSE;
-
         if (trx->fts_trx) {
                 trx_finalize_for_fts(trx, not_rollback);
         }
 
-	ut_ad(trx->lock.wait_thr == NULL);
-	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-	ut_ad(!trx->in_ro_trx_list);
-	ut_ad(!trx->in_rw_trx_list);
+	trx_init(trx);
 
 #ifdef WITH_WSREP
 	if (wsrep_on(trx->mysql_thd)) {
 		trx->lock.was_chosen_as_deadlock_victim = FALSE;
 	}
 #endif
-	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	trx->error_state = DB_SUCCESS;
 
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
@@ -1643,6 +1657,13 @@ trx_commit_low(
 
 		/*--------------*/
 		mtr_commit(mtr);
+
+		DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
+				if (trx->insert_undo != NULL
+				    || trx->update_undo != NULL) {
+					log_make_checkpoint_at(LSN_MAX, TRUE);
+					DBUG_SUICIDE();
+				});
 		/*--------------*/
 		lsn = mtr->end_lsn;
 	} else {
