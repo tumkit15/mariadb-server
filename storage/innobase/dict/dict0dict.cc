@@ -4846,6 +4846,7 @@ col_loop1:
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, create_name);
 		fputs("There is no index in table ", ef);
+		ut_ad(trx_id > 0);
 		ut_print_name(ef, NULL, TRUE, create_name);
 		fprintf(ef, " where the columns appear\n"
 			"as the first columns. Constraint:\n%s\n"

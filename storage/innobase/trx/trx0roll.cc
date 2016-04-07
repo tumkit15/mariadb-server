@@ -100,7 +100,8 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (trx->insert_undo || trx->update_undo) {
+	if ((!trx->read_only && trx->rseg != 0) &&
+            (trx->insert_undo || trx->update_undo)) {
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
 		ut_a(thr == que_fork_start_command(
@@ -149,7 +150,7 @@ trx_rollback_to_savepoint(
 {
 	ut_ad(!trx_mutex_own(trx));
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	trx_rollback_to_savepoint_low(trx, savept);
 
@@ -453,7 +454,7 @@ trx_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	savep = trx_savepoint_find(trx, savepoint_name);
 

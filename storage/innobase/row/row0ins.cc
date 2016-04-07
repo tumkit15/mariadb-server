@@ -2708,6 +2708,8 @@ row_ins_sec_index_entry_low(
 		goto func_exit;
 	}
 
+	ut_ad(thr_get_trx(thr)->id > 0);
+
 #ifdef UNIV_DEBUG
 	{
 		page_t*	page = btr_cur_get_page(&cursor);
@@ -3290,7 +3292,7 @@ row_ins_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	node = static_cast<ins_node_t*>(thr->run_node);
 
