@@ -312,8 +312,9 @@ dict_stats_exec_sql(
 
 	if (trx == NULL) {
 		trx = trx_allocate_for_background();
-		trx_start_if_not_started(trx);
 		trx_started = true;
+
+		trx_start_internal(trx);
 	}
 
 	err = que_eval_sql(pinfo, sql, FALSE, trx); /* pinfo is freed here */
@@ -2502,7 +2503,7 @@ dict_stats_save(
 	}
 
 	trx_t*	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx_start_internal(trx);
 
 	dict_index_t*	index;
 	index_map_t	indexes;
@@ -2997,7 +2998,7 @@ dict_stats_fetch_from_ps(
 
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
 
-	trx_start_if_not_started(trx);
+	trx_start_internal(trx);
 
 	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
@@ -3182,7 +3183,7 @@ dict_stats_update(
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 		dict_stats_empty_table(table, true);
 		return(DB_TABLESPACE_DELETED);
-	} else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+	} else if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
 		/* If we have set a high innodb_force_recovery level, do
 		not calculate statistics, as a badly corrupted index can
 		cause a crash in it. */

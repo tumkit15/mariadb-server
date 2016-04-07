@@ -563,6 +563,7 @@ row_upd_index_entry_sys_field(
 	field = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (type == DATA_TRX_ID) {
+		ut_ad(val > 0);
 		trx_write_trx_id(field, val);
 	} else {
 		ut_ad(type == DATA_ROLL_PTR);
@@ -1911,6 +1912,7 @@ row_upd_sec_index_entry(
 
 	/* Set the query thread, so that ibuf_insert_low() will be
 	able to invoke thd_get_trx(). */
+	ut_ad(trx_id > 0);
 	btr_pcur_get_btr_cur(&pcur)->thr = thr;
 
 	search_result = row_search_index_entry(index, entry, mode,
@@ -2201,7 +2203,6 @@ row_upd_clust_rec_by_insert(
 
 	entry = row_build_index_entry(node->upd_row, node->upd_ext,
 				      index, heap);
-	ut_a(entry);
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
@@ -2620,7 +2621,7 @@ row_upd_clust_step(
 #ifdef UNIV_DEBUG
 	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
 	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
-	if (!thr_get_trx(thr)->ddl) {
+	if (!thr_get_trx(thr)->internal) {
 		DEBUG_SYNC_C_IF_THD(
 			thr_get_trx(thr)->mysql_thd,
 			"innodb_row_upd_clust_step_enter");
@@ -2893,7 +2894,7 @@ row_upd_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	node = static_cast<upd_node_t*>(thr->run_node);
 

@@ -570,6 +570,7 @@ row_undo_mod_del_mark_or_remove_sec(
 
 		return(err);
 	}
+	ut_ad(trx->id > 0);
 
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
 						      entry, BTR_MODIFY_TREE);

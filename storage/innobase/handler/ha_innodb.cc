@@ -1555,7 +1555,7 @@ thd_requested_durability(
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
 UNIV_INTERN
-ibool
+bool
 thd_trx_is_read_only(
 /*=================*/
 	THD*	thd)	/*!< in: thread handle */
@@ -3269,7 +3269,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_xa(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx, false);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -4112,7 +4112,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, false);
 
 	/* Assign a read view if the transaction does not have it yet.
 	Do this only if transaction is using REPEATABLE READ isolation
@@ -4661,7 +4661,7 @@ innobase_release_savepoint(
 	trx = check_trx_exists(thd);
 
 	if (trx->state == TRX_STATE_NOT_STARTED) {
-		trx_start_if_not_started(trx);
+		trx_start_if_not_started(trx, true);
 	}
 
 	/* TODO: use provided savepoint data area to store savepoint data */
@@ -12224,7 +12224,7 @@ ha_innobase::discard_or_import_tablespace(
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx, true);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
@@ -12405,7 +12405,6 @@ ha_innobase::delete_table(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
-	trx->ddl = true;
 
 	/* Drop the table in InnoDB */
 	err = row_drop_table_for_mysql(
@@ -12654,7 +12653,7 @@ innobase_rename_table(
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, true);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations. */
@@ -12695,7 +12694,7 @@ innobase_rename_table(
 				normalize_table_name_low(
 					par_case_name, from, FALSE);
 #endif
-				trx_start_if_not_started(trx);
+				trx_start_if_not_started(trx, true);
 				error = row_rename_table_for_mysql(
 					par_case_name, norm_to, trx, TRUE);
 			}
@@ -18577,7 +18576,7 @@ wsrep_fake_trx_id(
 	THD		*thd)	/*!< in: user thread handle */
 {
 	mutex_enter(&trx_sys->mutex);
-	trx_id_t trx_id = trx_sys_get_new_trx_id();
+	trx_id_t trx_id = trx_sys_get_new_trx_id(false);
 	mutex_exit(&trx_sys->mutex);
 
 	(void *)wsrep_ws_handle_for_trx(wsrep_thd_ws_handle(thd), trx_id);
