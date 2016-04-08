@@ -2060,7 +2060,7 @@ row_sel_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		trx_start_if_not_started_xa(thr_get_trx(thr));
+		trx_start_if_not_started_xa(thr_get_trx(thr), false);
 
 		plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -4038,7 +4038,7 @@ release_search_latch:
 	      || prebuilt->select_lock_type != LOCK_NONE
 	      || trx->read_view);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, false);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
@@ -4187,6 +4187,7 @@ wait_table_again:
 					"Table %s is encrypted but encryption service or"
 					" used key_id is not available. "
 					" Can't continue reading table.",
+
 					prebuilt->table->name);
 				index->table->is_encrypted = true;
 			}
@@ -5329,7 +5330,7 @@ row_search_check_if_query_cache_permitted(
 
 	/* Start the transaction if it is not started yet */
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, false);
 
 	/* If there are locks on the table or some trx has invalidated the
 	cache up to our trx id, then ret = FALSE.

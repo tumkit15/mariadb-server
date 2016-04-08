@@ -183,31 +183,54 @@ read_view_t*
 read_view_create_low(
 /*=================*/
 	ulint		n,	/*!< in: number of cells in the trx_ids array */
-	read_view_t*&	view)	/*!< in,out: pre-allocated view array or NULL if
+	read_view_t*&	view,	/*!< in,out: pre-allocated view array or NULL if
 				a new one needs to be created */
+	size_t           *sz)
 {
-	if (view == NULL) {
-		view = static_cast<read_view_t*>(
-			ut_malloc(sizeof(read_view_t)));
-		os_atomic_increment_ulint(&srv_read_views_memory,
-					  sizeof(read_view_t));
-		view->max_descr = 0;
-		view->descriptors = NULL;
-	}
 
-	if (UNIV_UNLIKELY(view->max_descr < n)) {
+	read_view_t*	clone;
+
+	if (view == NULL) {
+		*sz = sizeof(read_view_t) + n + n / 10;
+		clone = static_cast<read_view_t*>(
+			ut_malloc(*sz));
+		os_atomic_increment_ulint(&srv_read_views_memory, *sz);
+		clone->max_descr = n + n / 10;
+		clone->descriptors = (trx_id_t*) clone + sizeof(read_view_t);
+		clone->n_descr = n;
+
+		return clone;
+
+	} else if (UNIV_UNLIKELY(view->max_descr < n)) {
+
+		*sz = 0;
+		if (view->creator_trx_id > 0) {
+			/* space for second instance */
+			*sz = sizeof(read_view_t) + n + n / 10;
+		}
 
 		/* avoid frequent re-allocations by extending the array to the
 		desired size + 10% */
 
 		os_atomic_increment_ulint(&srv_read_views_memory,
 					  (n + n / 10 - view->max_descr) *
-					  sizeof(trx_id_t));
+					  sizeof(trx_id_t)
+					  + (*sz));
 		view->max_descr = n + n / 10;
 		view->descriptors = static_cast<trx_id_t*>(
 			ut_realloc(view->descriptors,
 				   view->max_descr *
-				   sizeof *view->descriptors));
+				   sizeof *view->descriptors
+				   + *sz));
+	} else if (view->creator_trx_id > 0) {
+		/* we are allocating a new instance of size n+10%
+		   so we actually increase the current one to that
+		   size as well */
+		view->max_descr = n + n / 10;
+		*sz = sizeof(read_view_t) + n + n / 10;
+		*sz *= 2;
+		clone = static_cast<read_view_t*>(ut_malloc(*sz));
+		return clone;
 	}
 
 	view->n_descr = n;
@@ -230,26 +253,39 @@ read_view_clone(
 						NULL */
 {
 	read_view_t*	clone;
+	read_view_t*	new_view;
 	trx_id_t*	old_descriptors;
 	ulint		old_max_descr;
+	size_t		sz = 0;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	clone = read_view_create_low(view->n_descr, prebuilt_clone);
+	clone = read_view_create_low(view->n_descr, prebuilt_clone, &sz);
 
+	/* not sure if this is necessary DGB */
 	old_descriptors = clone->descriptors;
 	old_max_descr = clone->max_descr;
 
-	memcpy(clone, view, sizeof(*view));
+	/* is needed DGB */
+	memcpy(clone, view, sz);
 
+	/* not sure if this is necessary DGB */
 	clone->descriptors = old_descriptors;
 	clone->max_descr = old_max_descr;
 
+	/* not sure if this is necessary DGB */
 	if (view->n_descr) {
 		memcpy(clone->descriptors, view->descriptors,
 		       view->n_descr * sizeof(trx_id_t));
 	}
 
+	if (view->creator_trx_id > 0) {
+		new_view = (read_view_t*) &clone->descriptors[clone->max_descr];
+		new_view->descriptors = (trx_id_t*) &new_view[1];
+
+		new_view->n_descr = clone->n_descr;
+		new_view->max_descr = clone->max_descr;
+	}
 	return(clone);
 }
 
@@ -295,15 +331,17 @@ read_view_open_now_low(
 /*===================*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	read_view_t*&	view)		/*!< in,out: pre-allocated view array or
+	read_view_t*&	view,		/*!< in,out: pre-allocated view array or
 					NULL if a new one needs to be created */
+	bool		purge)		/*!< in: true if purge view */
 {
 	trx_id_t*	descr;
 	ulint		i;
+	size_t		sz;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	view = read_view_create_low(trx_sys->descr_n_used, view);
+	view = read_view_create_low(trx_sys->descr_n_used, view, &sz);
 
 	view->undo_no = 0;
 	view->type = VIEW_NORMAL;
@@ -387,7 +425,7 @@ read_view_open_now(
 {
 	mutex_enter(&trx_sys->mutex);
 
-	view = read_view_open_now_low(cr_trx_id, view);
+	view = read_view_open_now_low(cr_trx_id, view, false);
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -410,11 +448,8 @@ read_view_purge_open(
 	read_view_t*&	prebuilt_view)	/*!< in,out: pre-allocated view array or
 					NULL if a new one needs to be created */
 {
-	ulint		i;
 	read_view_t*	view;
 	read_view_t*	oldest_view;
-	trx_id_t	creator_trx_id;
-	ulint		insert_done	= 0;
 
 	mutex_enter(&trx_sys->mutex);
 
@@ -422,14 +457,15 @@ read_view_purge_open(
 
 	if (oldest_view == NULL) {
 
-		view = read_view_open_now_low(0, prebuilt_view);
+		view = read_view_open_now_low(0, prebuilt_view, true);
 
 		mutex_exit(&trx_sys->mutex);
 
 		return(view);
 	}
 
-	/* Clone the oldest view to a pre-allocated clone view */
+	/* Clone the oldest view, if the creator_trx_id is > 0 then
+	allocate space for two views, the oldest and the new purge view. */
 
 	oldest_view = read_view_clone(oldest_view, prebuilt_clone);
 
@@ -437,46 +473,61 @@ read_view_purge_open(
 
 	mutex_exit(&trx_sys->mutex);
 
-	ut_a(oldest_view->creator_trx_id > 0);
-	creator_trx_id = oldest_view->creator_trx_id;
+	trx_id_t	creator_trx_id = oldest_view->creator_trx_id;
+	size_t		sz;
 
-	view = read_view_create_low(oldest_view->n_descr + 1, prebuilt_view);
+	if (creator_trx_id > 0) {
 
-	/* Add the creator transaction id in the trx_ids array in the
-	correct slot. */
+		view = read_view_create_low(oldest_view->n_descr + 1, prebuilt_view, &sz);
 
-	for (i = 0; i < oldest_view->n_descr; ++i) {
-		trx_id_t	id;
+		/* Add the creator transaction id in the trx_ids
+		array in the correct slot.  */
 
-		id = oldest_view->descriptors[i - insert_done];
+		ulint	i;
+		ulint	insert_done = 0;
 
-		if (insert_done == 0 && creator_trx_id < id) {
-			id = creator_trx_id;
-			insert_done = 1;
+		for (i = 0; i < oldest_view->n_descr; ++i) {
+			trx_id_t	id;
+
+			id = oldest_view->descriptors[i - insert_done];
+
+			if (insert_done == 0 && creator_trx_id < id) {
+				id = creator_trx_id;
+				insert_done = 1;
+			}
+
+			view->descriptors[i] = id;
 		}
 
-		view->descriptors[i] = id;
-	}
+		if (insert_done == 0) {
+			view->descriptors[i] = creator_trx_id;
+		} else {
+			ut_a(i > 0);
+			view->descriptors[i] = oldest_view->descriptors[i - 1];
+		}
 
-	if (insert_done == 0) {
-		view->descriptors[i] = creator_trx_id;
+		view->creator_trx_id = 0;
+	
+		view->low_limit_no = oldest_view->low_limit_no;
+		view->low_limit_id = oldest_view->low_limit_id;
+		view->up_limit_id = oldest_view->up_limit_id;
 	} else {
-		ut_a(i > 0);
-		view->descriptors[i] = oldest_view->descriptors[i - 1];
+		/* We can use the cloned view as is. */
+		view = oldest_view;
 	}
-
-	view->creator_trx_id = 0;
-
-	view->low_limit_no = oldest_view->low_limit_no;
-	view->low_limit_id = oldest_view->low_limit_id;
 
 	if (view->n_descr > 0) {
-		/* The last active transaction has the smallest id: */
 
-		view->up_limit_id = view->descriptors[0];
-	} else {
-		view->up_limit_id = oldest_view->up_limit_id;
+		/* The last active transaction has the smallest id. However
+ 		it may be larger than the oldest view's up_limit_id because
+ 		the oldest view's creator id can be larger and that will be
+		in the tx_ids array. */
+
+		view->up_limit_id = std::min(view->descriptors[view->n_descr],
+					view->up_limit_id);
 	}
+
+	ut_ad(view->up_limit_id <= view->low_limit_id);
 
 	return(view);
 }
@@ -627,11 +678,13 @@ read_cursor_view_create_for_mysql(
 	mutex_enter(&trx_sys->mutex);
 
 	curview->read_view = NULL;
-	read_view_open_now_low(UINT64_UNDEFINED, curview->read_view);
+	read_view_open_now_low(UINT64_UNDEFINED, curview->read_view, false);
 
 	view = curview->read_view;
 	view->undo_no = cr_trx->undo_no;
 	view->type = VIEW_HIGH_GRANULARITY;
+
+/* XXXX DIFFERS FROM UPSTREAM DGB  */
 
 	mutex_exit(&trx_sys->mutex);
 

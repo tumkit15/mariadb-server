@@ -448,9 +448,9 @@ and rolling it back. It will attempt to resolve all deadlocks. The returned
 transaction id will be the joining transaction id or 0 if some other
 transaction was chosen as a victim and rolled back or no deadlock found.
 
-@return id of transaction chosen as victim or 0 */
+@return transaction chosen as victim or 0 */
 static
-trx_id_t
+const trx_t*
 lock_deadlock_check_and_resolve(
 /*===========================*/
 	const lock_t*	lock,	/*!< in: lock the transaction is requesting */
@@ -2210,7 +2210,6 @@ lock_rec_enqueue_waiting(
 {
 	trx_t*			trx;
 	lock_t*			lock;
-	trx_id_t		victim_trx_id;
 	ulint			sec;
 	ulint			ms;
 
@@ -2268,13 +2267,13 @@ lock_rec_enqueue_waiting(
 
 	trx_mutex_exit(trx);
 
-	victim_trx_id = lock_deadlock_check_and_resolve(lock, trx);
+	const trx_t*	victim_trx = lock_deadlock_check_and_resolve(lock, trx);
 
 	trx_mutex_enter(trx);
 
-	if (victim_trx_id != 0) {
+	if (victim_trx != 0) {
 
-		ut_ad(victim_trx_id == trx->id);
+		ut_ad(victim_trx == trx);
 
 		lock_reset_lock_and_trx_wait(lock);
 		lock_rec_reset_nth_bit(lock, heap_no);
@@ -2292,7 +2291,7 @@ lock_rec_enqueue_waiting(
 
 	trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
-	trx->lock.was_chosen_as_deadlock_victim = FALSE;
+	trx->lock.was_chosen_as_deadlock_victim = false;
 	trx->lock.wait_started = ut_time();
 
 	if (UNIV_UNLIKELY(trx->take_stats)) {
@@ -4237,9 +4236,9 @@ lock_deadlock_push(
 /********************************************************************//**
 Looks iteratively for a deadlock. Note: the joining transaction may
 have been granted its lock by the deadlock checks.
-@return 0 if no deadlock else the victim transaction id.*/
+@return 0 if no deadlock else the victim transaction.*/
 static
-trx_id_t
+const trx_t*
 lock_deadlock_search(
 /*=================*/
 	lock_deadlock_ctx_t*	ctx,	/*!< in/out: deadlock context */
@@ -4307,7 +4306,7 @@ lock_deadlock_search(
 
 			lock_deadlock_notify(ctx, lock);
 
-			return(lock_deadlock_select_victim(ctx)->id);
+			return(lock_deadlock_select_victim(ctx));
 
 		} else if (lock_deadlock_too_deep(ctx)) {
 
@@ -4317,12 +4316,12 @@ lock_deadlock_search(
 
 #ifdef WITH_WSREP
 			if (wsrep_thd_is_BF(ctx->start->mysql_thd, TRUE)) {
-				return(ctx->wait_lock->trx->id);
+				return(ctx->wait_lock->trx);
 			}
 			else
 #endif /* WITH_WSREP */
 			/* Select the joining transaction as the victim. */
-				return(ctx->start->id);
+				return(ctx->start);
 
 		} else {
 			/* We do not need to report autoinc locks to the upper
@@ -4341,7 +4340,7 @@ lock_deadlock_search(
 					waitee_ptr = waitee_ptr->next;
 					if (!waitee_ptr) {
 						ctx->too_deep = TRUE;
-						return(ctx->start->id);
+						return(ctx->start);
 					}
 					waitee_ptr->next = NULL;
 					waitee_ptr->used = 0;
@@ -4366,11 +4365,11 @@ lock_deadlock_search(
 
 #ifdef WITH_WSREP
 				if (wsrep_thd_is_BF(ctx->start->mysql_thd, TRUE))
-					return(lock->trx->id);
+					return(lock->trx);
 				else
 #endif /* WITH_WSREP */
 
-					return(ctx->start->id);
+					return(ctx->start);
 				}
 
 				ctx->wait_lock = lock->trx->lock.wait_lock;
@@ -4440,7 +4439,7 @@ lock_deadlock_trx_rollback(
 
 	trx_mutex_enter(trx);
 
-	trx->lock.was_chosen_as_deadlock_victim = TRUE;
+	trx->lock.was_chosen_as_deadlock_victim = true;
 
 	lock_cancel_waiting_and_release(trx->lock.wait_lock);
 
@@ -4453,7 +4452,7 @@ lock_report_waiters_to_mysql(
 /*=======================*/
 	struct thd_wait_reports*	waitee_buf_ptr,	/*!< in: set of trxs */
 	THD*				mysql_thd,	/*!< in: THD */
-	trx_id_t			victim_trx_id)	/*!< in: Trx selected
+	const trx_t*			victim_trx)	/*!< in: Trx selected
 							as deadlock victim, if
 							any */
 {
@@ -4468,7 +4467,7 @@ lock_report_waiters_to_mysql(
 			trx_t *w_trx = p->waitees[i];
 			/*  There is no need to report waits to a trx already
 			selected as a victim. */
-			if (w_trx->id != victim_trx_id) {
+			if (w_trx != victim_trx) {
 				/* If thd_report_wait_for() decides to kill the
 				transaction, then we will get a call back into
 				innobase_kill_query. We mark this by setting
@@ -4496,15 +4495,15 @@ and rolling it back. It will attempt to resolve all deadlocks. The returned
 transaction id will be the joining transaction id or 0 if some other
 transaction was chosen as a victim and rolled back or no deadlock found.
 
-@return id of transaction chosen as victim or 0 */
+@return transaction chosen as victim or 0 */
 static
-trx_id_t
+const trx_t*
 lock_deadlock_check_and_resolve(
 /*============================*/
 	const lock_t*	lock,	/*!< in: lock the transaction is requesting */
 	const trx_t*	trx)	/*!< in: transaction */
 {
-	trx_id_t		victim_trx_id;
+	const trx_t*		victim_trx;
 	struct thd_wait_reports	waitee_buf;
 	struct thd_wait_reports*waitee_buf_ptr;
 	THD*			start_mysql_thd;
@@ -4538,20 +4537,20 @@ lock_deadlock_check_and_resolve(
 			waitee_buf_ptr->used = 0;
 		}
 
-		victim_trx_id = lock_deadlock_search(&ctx, waitee_buf_ptr);
+		victim_trx = lock_deadlock_search(&ctx, waitee_buf_ptr);
 
 		/* Report waits to upper layer, as needed. */
 		if (waitee_buf_ptr) {
 			lock_report_waiters_to_mysql(waitee_buf_ptr,
 						     start_mysql_thd,
-						     victim_trx_id);
+						     victim_trx);
 		}
 
 		/* Search too deep, we rollback the joining transaction. */
 		if (ctx.too_deep) {
 
 			ut_a(trx == ctx.start);
-			ut_a(victim_trx_id == trx->id);
+			ut_a(victim_trx == trx);
 
 #ifdef WITH_WSREP
 			if (!wsrep_thd_is_BF(ctx.start->mysql_thd, TRUE))
@@ -4568,9 +4567,9 @@ lock_deadlock_check_and_resolve(
 
 			MONITOR_INC(MONITOR_DEADLOCK);
 
-		} else if (victim_trx_id != 0 && victim_trx_id != trx->id) {
+		} else if (victim_trx != 0 && victim_trx != trx) {
 
-			ut_ad(victim_trx_id == ctx.wait_lock->trx->id);
+			ut_ad(victim_trx == ctx.wait_lock->trx);
 			lock_deadlock_trx_rollback(&ctx);
 
 			lock_deadlock_found = TRUE;
@@ -4578,11 +4577,11 @@ lock_deadlock_check_and_resolve(
 			MONITOR_INC(MONITOR_DEADLOCK);
 		}
 
-	} while (victim_trx_id != 0 && victim_trx_id != trx->id);
+	} while (victim_trx != 0 && victim_trx != trx);
 
 	/* If the joining transaction was selected as the victim. */
-	if (victim_trx_id != 0) {
-		ut_a(victim_trx_id == trx->id);
+	if (victim_trx != 0) {
+		ut_a(victim_trx == trx);
 
 		srv_stats.lock_deadlock_count.inc();
 
@@ -4591,7 +4590,7 @@ lock_deadlock_check_and_resolve(
 		lock_deadlock_found = TRUE;
 	}
 
-	return(victim_trx_id);
+	return(victim_trx);
 }
 
 /*========================= TABLE LOCKS ==============================*/
@@ -4871,7 +4870,6 @@ lock_table_enqueue_waiting(
 {
 	trx_t*		trx;
 	lock_t*		lock;
-	trx_id_t	victim_trx_id;
 	ulint		sec;
 	ulint		ms;
 
@@ -4929,12 +4927,12 @@ lock_table_enqueue_waiting(
 
 	trx_mutex_exit(trx);
 
-	victim_trx_id = lock_deadlock_check_and_resolve(lock, trx);
+	const trx_t*	victim_trx = lock_deadlock_check_and_resolve(lock, trx);
 
 	trx_mutex_enter(trx);
 
-	if (victim_trx_id != 0) {
-		ut_ad(victim_trx_id == trx->id);
+	if (victim_trx != 0) {
+		ut_ad(victim_trx == trx);
 
 		/* The order here is important, we don't want to
 		lose the state of the lock before calling remove. */
@@ -4952,7 +4950,7 @@ lock_table_enqueue_waiting(
 	trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
 	trx->lock.wait_started = ut_time();
-	trx->lock.was_chosen_as_deadlock_victim = FALSE;
+	trx->lock.was_chosen_as_deadlock_victim = false;
 	trx->n_table_lock_waits++;
 
 	if (UNIV_UNLIKELY(trx->take_stats)) {
@@ -5026,7 +5024,7 @@ lock_table(
 				does nothing */
 	dict_table_t*	table,	/*!< in/out: database table
 				in dictionary cache */
-	enum lock_mode	mode,	/*!< in: lock mode */
+	lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 #ifdef WITH_WSREP
@@ -5059,6 +5057,18 @@ lock_table(
 	if (lock_table_has(trx, table, mode)) {
 
 		return(DB_SUCCESS);
+	}
+
+	/* Read only transactions can write to temp tables, we don't want
+	to promote them to RW transactions. Their updates cannot be visible
+	to other transactions. Therefore we can keep them out
+	of the read views. */
+
+	if ((mode == LOCK_IX || mode == LOCK_X)
+	    && !trx->read_only
+	    && trx->rseg == 0) {
+
+		trx_set_rw_mode(trx);
 	}
 
 	lock_mutex_enter();
@@ -5652,15 +5662,18 @@ lock_table_print(
 	fputs("TABLE LOCK table ", file);
 	ut_print_name(file, lock->trx, TRUE,
 		      lock->un_member.tab_lock.table->name);
-	fprintf(file, " trx id " TRX_ID_FMT, lock->trx->id);
+	fprintf(file, " trx id " TRX_ID_FMT,
+		lock->trx->id > 0 ? lock->trx->id : (trx_id_t) lock->trx);
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
 	} else if (lock_get_mode(lock) == LOCK_X) {
+		ut_ad(lock->trx->id > 0);
 		fputs(" lock mode X", file);
 	} else if (lock_get_mode(lock) == LOCK_IS) {
 		fputs(" lock mode IS", file);
 	} else if (lock_get_mode(lock) == LOCK_IX) {
+		ut_ad(lock->trx->id > 0);
 		fputs(" lock mode IX", file);
 	} else if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 		fputs(" lock mode AUTO-INC", file);
@@ -5689,7 +5702,6 @@ lock_rec_print(
 	FILE*		file,	/*!< in: file where to print */
 	const lock_t*	lock)	/*!< in: record type lock */
 {
-	const buf_block_t*	block;
 	ulint			space;
 	ulint			page_no;
 	ulint			i;
@@ -5701,6 +5713,8 @@ lock_rec_print(
 
 	ut_ad(lock_mutex_own());
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
+
+	ut_ad(lock->trx->id > 0);
 
 	space = lock->un_member.rec_lock.space;
 	page_no = lock->un_member.rec_lock.page_no;
@@ -5751,6 +5765,9 @@ lock_rec_print(
 	putc('\n', file);
 
 	if ( srv_show_verbose_locks ) {
+
+	const buf_block_t*      block;
+
 	block = buf_page_try_get(space, page_no, &mtr);
 
 	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
@@ -5780,7 +5797,8 @@ lock_rec_print(
 	}
 
 	mtr_commit(&mtr);
-	if (UNIV_LIKELY_NULL(heap)) {
+
+	if (heap) {
 		mem_heap_free(heap);
 	}
 }
@@ -7325,7 +7343,7 @@ lock_get_trx_id(
 /*============*/
 	const lock_t*	lock)	/*!< in: lock */
 {
-	return(lock->trx->id);
+	return(lock->trx->id > 0 ? lock->trx->id : (trx_id_t) lock->trx);
 }
 
 /*******************************************************************//**
@@ -7525,7 +7543,7 @@ lock_cancel_waiting_and_release(
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
 
-	lock->trx->lock.cancel = TRUE;
+	lock->trx->lock.cancel = true;
 
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
@@ -7553,7 +7571,7 @@ lock_cancel_waiting_and_release(
 		lock_wait_release_thread_if_suspended(thr);
 	}
 
-	lock->trx->lock.cancel = FALSE;
+	lock->trx->lock.cancel = false;
 }
 
 /*********************************************************************//**
@@ -7746,7 +7764,9 @@ lock_table_locks_lookup(
 		const lock_t*	lock;
 
 		assert_trx_in_list(trx);
-		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
+
+		ut_ad((trx->read_only || trx->rseg == 0)
+		      == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
