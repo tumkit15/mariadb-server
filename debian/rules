@@ -24,16 +24,15 @@ DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -
 DISTRIBUTION = $(shell lsb_release -i -s)
 RELEASE = $(shell lsb_release -r -s)
 
-MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
-ifeq (${MAKE_J}, -j0)
-  MAKE_J = -j1
+NUMJOBS = $(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
+ifeq (${NUMJOBS}, 0)
+  NUMJOBS = 1
 endif
 
 # Parallel build support as advised
 # at https://www.debian.org/doc/debian-policy/ch-source.html#s-debianrules-options
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-    MAKEFLAGS += -j $(NUMJOBS)
 endif
 
 
@@ -79,7 +78,7 @@ build-stamp: configure
 	@echo "RULES.$@"
 	dh_testdir
 
-	cd $(builddir) && $(MAKE) $(MAKE_J) $(AM_EXTRA_MAKEFLAGS)
+	cd $(builddir) && $(MAKE) -j$(NUMJOBS) $(AM_EXTRA_MAKEFLAGS)
 
 ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
 	if [ ! -f testsuite-stamp ] ; then \
