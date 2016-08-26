@@ -56,14 +56,15 @@ sub skip_combinations {
   sub ipv6_ok() {
     use Socket;
     return 0 unless socket my $sock, PF_INET6, SOCK_STREAM, getprotobyname('tcp');
+    my $ipv6_works = false;
     # eval{}, if there's no Socket::sockaddr_in6 at all, old Perl installation <5.14
     eval {
       my $addr = sockaddr_in6($baseport, Socket::IN6ADDR_LOOPBACK) or return 0;
-      return 0 unless bind $sock, $addr;
+      die 'bind failed' unless bind $sock, $addr;
       close $sock;
-      return true;
+      $ipv6_works = true;
     };
-    return $@ eq "";
+    return $@ eq "" && $ipv6_works;
   }
   $skip{'include/check_ipv6.inc'} = 'No IPv6' unless ipv6_ok();
 
