@@ -255,3 +255,9 @@ char *my_strndup(const char *from, size_t length, myf my_flags)
   DBUG_RETURN(ptr);
 }
 
+void *aligned_calloc(size_t nmemb, size_t size)
+{
+  void *ptr = ALIGNED_ALLOC(nmemb * size, CPU_LEVEL1_DCACHE_LINESIZE);
+  bzero(ptr, nmemb * size);
+  return ptr;
+}

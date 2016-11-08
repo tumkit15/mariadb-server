@@ -37,12 +37,7 @@ inline void *XXaligned_alloc(size_t size, size_t align)
 #define ALIGNED_ALLOC(S,A)  malloc(S)
 #endif
 
-inline void *aligned_calloc(size_t nmemb, size_t size)
-{
-  void *ptr = ALIGNED_ALLOC(nmemb * size, CPU_LEVEL1_DCACHE_LINESIZE);
-  bzero(ptr, nmemb * size);
-  return ptr;
-}
+void *aligned_calloc(size_t nmemb, size_t size);
 
 #ifdef SAFEMALLOC
 void *sf_malloc(size_t size, myf my_flags);
