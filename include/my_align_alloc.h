@@ -37,7 +37,7 @@ inline void *XXaligned_alloc(size_t size, size_t align)
 #define ALIGNED_ALLOC(S,A)  malloc(S)
 #endif
 
-inline void *aligned_calloc(size_t nmemb, size_t size) __attribute__ ((visibility ("hidden")));
+inline void *aligned_calloc(size_t nmemb, size_t size) __attribute__ ((visibility ("always_inline")));
 
 void *aligned_calloc(size_t nmemb, size_t size)
 {
