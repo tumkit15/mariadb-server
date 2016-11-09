@@ -37,7 +37,7 @@ inline void *XXaligned_alloc(size_t size, size_t align)
 #define ALIGNED_ALLOC(S,A)  malloc(S)
 #endif
 
-inline void *aligned_calloc(size_t nmemb, size_t size)
+inline void *aligned_calloc(size_t nmemb, size_t size) __attribute__ ((visibility ("hidden")))
 {
   void *ptr = ALIGNED_ALLOC(nmemb * size, CPU_LEVEL1_DCACHE_LINESIZE);
   bzero(ptr, nmemb * size);
