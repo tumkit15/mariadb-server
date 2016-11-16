@@ -1,8 +1,7 @@
 # vim ft=yaml
 # travis-ci.org definition
 
-# non-container builds don't have enough RAM to reliably compile
-sudo: required
+sudo: false
 dist: trusty
 
 language: cpp
@@ -58,15 +57,18 @@ addons:
       - libjemalloc-dev
       - devscripts # implicit for any build on Ubuntu
 
-# libsnappy-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3880
-# liblzma-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3879
-# libzmq-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3881
-# libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
+# Can't do sudo: false with full list of packages until:
+# https://github.com/travis-ci/apt-package-whitelist/issues/3673 gdb
+# https://github.com/travis-ci/apt-package-whitelist/issues/3677 libreadline-gplv2-dev
+# https://github.com/travis-ci/apt-package-whitelist/issues/3945 libcrack2-dev
+# https://github.com/travis-ci/apt-package-whitelist/issues/3944 libsystemd-daemon-dev
 
 script:
   - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION} MYSQL_COMPILER_LAUNCHER=ccache
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
+# https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable in trusty containers
+  - export MTR_MEM=/dev/shm
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
   - ccache --show-stats
