@@ -321,8 +321,9 @@ buf_dump(
 			 * total number of pages */
 			t_pages = buf_pool->curr_size
 					*  srv_buf_pool_dump_pct / 100;
-			if (n_pages > t_pages)
+			if (n_pages > t_pages) {
 				n_pages = t_pages;
+			}
 
 			if (n_pages == 0) {
 				n_pages = 1;
