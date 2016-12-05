@@ -1,0 +1,120 @@
+#
+# Functional test for innodb_buffer_pool_dump_pct
+#
+# From MDEV-11454 the amount dumped is the minimum of:
+# * innodb_buffer_pool_dump_pct * Innodb_buffer_pool_pages_total * innodb_page_size
+# * innodb_buffer_pool_pages_data * innodb_page_size
+
+--exec ls -la $MYSQLTEST_VARDIR/mysqld.1/data/
+-- source include/have_innodb.inc
+
+SET GLOBAL innodb_buffer_pool_dump_pct=1, global innodb_buffer_pool_dump_at_shutdown=1;
+
+# populate with data
+
+CREATE TABLE t1 (
+c01 blob, c02 blob, c03 blob, c04 blob, c05 blob,
+c06 blob, c07 blob, c08 blob, c09 blob, c10 blob,
+c11 blob, c12 blob, c13 blob, c14 blob, c15 blob,
+c16 blob, c17 blob, c18 blob, c19 blob, c20 blob,
+c21 blob, c22 blob, c23 blob, c24 blob, c25 blob,
+c26 blob, c27 blob, c28 blob, c29 blob, c30 blob,
+c31 blob, c32 blob, c33 blob, c34 blob, c35 blob,
+c36 blob, c37 blob, c38 blob, c39 blob, c40 blob,
+c41 blob, c42 blob, c43 blob, c44 blob, c45 blob,
+c46 blob, c47 blob, c48 blob, c49 blob, c50 blob,
+c51 blob, c52 blob, c53 blob, c54 blob, c55 blob,
+c56 blob, c57 blob, c58 blob, c59 blob, c60 blob,
+c61 blob, c62 blob, c63 blob, c64 blob, c65 blob,
+c66 blob, c67 blob, c68 blob, c69 blob, c70 blob,
+c71 blob, c72 blob, c73 blob, c74 blob, c75 blob,
+c76 blob, c77 blob, c78 blob, c79 blob, c80 blob
+) ROW_FORMAT=dynamic;
+
+SET @a = repeat('a', 65535);
+INSERT INTO t1 VALUES (@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a,
+@a,@a,@a,@a,@a
+);
+
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+update t1 set c01=c80, c80=c01;
+#select * from t1;
+
+--echo # Before Shutdown
+
+# Check the before status
+
+SHOW GLOBAL STATUS LIKE 'innodb_buffer_pool_pages_%';
+
+SELECT variable_value
+  FROM information_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_data';
+
+# Dump on shutdown has been set.
+#
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Send a shutdown request to the server
+-- shutdown_server 10
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+# Wait for the load to complete
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
+    FROM information_schema.global_status
+    WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+#-- source include/wait_condition.inc
+
+--echo # After load
+
+SELECT variable_value
+  FROM information_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_data';
+
+SHOW GLOBAL STATUS LIKE 'innodb_buffer_pool_pages_%';
+
+--exec ls -la $MYSQLTEST_VARDIR/mysqld.1/data/
+
+# Clean up
+#
+#
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ib_buffer_pool
+DROP TABLE t1;
