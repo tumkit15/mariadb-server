@@ -23,6 +23,12 @@ then
   # On Travis-CI, the log must stay under 4MB so make the build less verbose
   sed -i -e '/Add support for verbose builds/,+2d' debian/rules
 
+  # Clang produces significant amount of warnings in mroonga storage engine
+  # (over 4M).
+  if [[ $MYSQL_BUILD_CXX =~ clang++ ]]
+  then
+    export CMAKEFLAGS=-DWITHOUT_MROONGA_STORAGE_ENGINE=1
+  fi
   # Don't include test suite package on Travis-CI to make the build time shorter
   sed '/Package: mariadb-test-data/,+26d' -i debian/control
   sed '/Package: mariadb-test/,+34d' -i debian/control
