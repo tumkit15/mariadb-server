@@ -25,9 +25,6 @@ DISTRIBUTION := $(shell lsb_release -i -s)
 RELEASE := $(shell lsb_release -r -s)
 TMP:=$(CURDIR)/debian/tmp
 
-CC := $(DEB_HOST_GNU_TYPE)-gcc
-CXX := $(DEB_HOST_GNU_TYPE)-g++
-
 # Parallel build support as advised
 # at https://www.debian.org/doc/debian-policy/ch-source.html#s-debianrules-options
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
@@ -77,15 +74,11 @@ endif
 
 	mkdir -p $(BUILDDIR) && cd $(BUILDDIR) && \
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin"} \
-	    	CC=${CC} \
-	    	CXX=${CXX} \
 	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
 	    $(CMAKEFLAGS) \
 	    -DCOMPILATION_COMMENT="mariadb.org binary distribution" \
 	    -DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
 	    -DSYSTEM_TYPE="debian-$(DEB_BUILD_GNU_SYSTEM)" \
-	    $${MYSQL_BUILD_CXX:+-DCMAKE_CXX_COMPILER=$${MYSQL_BUILD_CXX}} \
-	    $${MYSQL_BUILD_CC:+-DCMAKE_C_COMPILER=${MYSQL_BUILD_CC}} \
 	    $${MYSQL_COMPILER_LAUNCHER:+-DCMAKE_CXX_COMPILER_LAUNCHER=${MYSQL_COMPILER_LAUNCHER}} \
 	    $${MYSQL_COMPILER_LAUNCHER:+-DCMAKE_C_COMPILER_LAUNCHER=${MYSQL_COMPILER_LAUNCHER}} \
 	    -DCMAKE_SYSTEM_PROCESSOR=$(DEB_BUILD_ARCH) \
