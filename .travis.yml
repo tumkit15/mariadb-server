@@ -1,21 +1,30 @@
 # vim ft=yaml
 # travis-ci.org definition
 
-# non-container builds don't have enough RAM to reliably compile
+# non-container builds don't always have enough RAM to reliably compile in 50 mins
 sudo: required
 dist: trusty
 
 language: cpp
-compiler:
-  - gcc
 cache:
   - apt
   - ccache
 
+os:
+  - linux
+compiler:
+  - gcc
+  - clang
 env:
-  matrix:
-    - GCC_VERSION=5
-    - GCC_VERSION=6
+  - GCC_VERSION=5
+  - GCC_VERSION=6
+
+matrix:
+  exclude:
+  - os: linux
+    compiler: clang
+    env: GCC_VERSION=6
+
 addons:
   apt:
     sources:
@@ -64,8 +73,10 @@ addons:
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
-  - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION} MYSQL_COMPILER_LAUNCHER=ccache
+  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then export MYSQL_BUILD_CC=clang  MYSQL_BUILD_CXX=clang++; fi
+  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}; fi
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
+  - export MYSQL_COMPILER_LAUNCHER=ccache
   - cd "${TRAVIS_BUILD_DIR}"
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
