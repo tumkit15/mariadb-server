@@ -50,7 +50,7 @@ addons:
       - dpatch
       - gdb
       - libaio-dev
-      - libboost-dev
+      - libboost1.55-dev
       - libjudy-dev
       - libncurses5-dev
       - libpam0g-dev
