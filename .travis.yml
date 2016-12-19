@@ -68,7 +68,9 @@ script:
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - which ${MYSQL_BUILD_CC}  ${MYSQL_BUILD_CXX}
   - cd "${TRAVIS_BUILD_DIR}"
+  - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
+  - ccache --show-stats
 
 notifications:
   irc:
