@@ -64,8 +64,9 @@ addons:
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
-  - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}
+  - export MYSQL_BUILD_CC=gcc-${GCC_VERSION} MYSQL_BUILD_CXX=g++-${GCC_VERSION}
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
+  - which ${MYSQL_BUILD_CC}  ${MYSQL_BUILD_CXX}
   - cd "${TRAVIS_BUILD_DIR}"
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
 

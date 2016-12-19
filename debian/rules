@@ -77,8 +77,8 @@ endif
 
 	mkdir -p $(BUILDDIR) && cd $(BUILDDIR) && \
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin"} \
-	    	CC=${CC} \
-	    	CXX=${CXX} \
+		CC=$${MYSQL_BUILD_CC:-${CC}} \
+		CXX=$${MYSQL_BUILD_CXX:-${CXX}} \
 	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
 	    $(CMAKEFLAGS) \
 	    -DCOMPILATION_COMMENT="mariadb.org binary distribution" \
