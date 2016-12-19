@@ -79,13 +79,13 @@ before_install:
   - export CACHE_NAME="${TRAVIS_OS_NAME}-${CXX}-${GCC_VERSION}"
 
 script:
-  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then \
-      export MYSQL_BUILD_CC=/usr/bin/clang-3.8  MYSQL_BUILD_CXX=/usr/bin/clang++-3.8; \
+  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then
+      export MYSQL_BUILD_CC=/usr/bin/clang-3.8  MYSQL_BUILD_CXX=/usr/bin/clang++-3.8;
     fi
-  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then \
-      export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}; \
+  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then
+      export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION};
     fi
-  - sed -i -e 's/\(libboost\)\(-dev\)/\11.55\2/' debian/rules ; \
+  - sed -i -e 's/\(libboost\)\(-dev\)/\11.55\2/' debian/rules
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - export MYSQL_COMPILER_LAUNCHER=ccache
   - cd "${TRAVIS_BUILD_DIR}"
