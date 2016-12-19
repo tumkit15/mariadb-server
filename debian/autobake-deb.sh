@@ -97,7 +97,7 @@ echo "Creating package version ${UPSTREAM}${PATCHLEVEL}~${CODENAME} ... "
 # will be ignored by dpkg-source when creating the tar.gz source package.
 # Use -b to build binary only packages as there is no need to waste time on
 # generating the source package.
-fakeroot dpkg-buildpackage -us -uc -I -b
+fakeroot dpkg-buildpackage -us -uc -I -b ${TRAVIS:+-d}
 
 # Don't log package contents on Travis-CI to save time and log size
 if [[ ! $TRAVIS ]]
