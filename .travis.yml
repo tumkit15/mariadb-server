@@ -7,8 +7,11 @@ dist: trusty
 
 language: cpp
 cache:
-  - apt
-  - ccache
+  apt: true
+  ccache: true
+  directories:
+    - ${TRAVIS_BUILD_DIR}/builddir/storage/tokudb/PerconaFT/xz/src/build_lzma-build
+    - ${TRAVIS_BUILD_DIR}/builddir/storage/tokudb/PerconaFT/snappy/src/build_snappy-build
 
 os:
   - linux
