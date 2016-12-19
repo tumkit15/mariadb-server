@@ -77,10 +77,6 @@ addons:
 # libzmq-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3881
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
-before_install:
-  # separate sharing between gcc versions
-  - export CACHE_NAME="${TRAVIS_OS_NAME}-${CXX}-${GCC_VERSION}"
-
 script:
   - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then
       export MYSQL_BUILD_CC=/usr/bin/clang-3.8  MYSQL_BUILD_CXX=/usr/bin/clang++-3.8;
