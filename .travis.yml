@@ -74,7 +74,7 @@ addons:
 # libzmq-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3881
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
-before_install:
+before_cache:
   # separate sharing between gcc versions
   - export CACHE_NAME="${TRAVIS_OS_NAME}-${CXX}-${GCC_VERSION}"
 
