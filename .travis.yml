@@ -76,7 +76,7 @@ addons:
 
 script:
   - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then \
-      export MYSQL_BUILD_CC=clang-3.8  MYSQL_BUILD_CXX=clang++-3.8; \
+      export MYSQL_BUILD_CC=/usr/bin/clang-3.8  MYSQL_BUILD_CXX=/usr/bin/clang++-3.8; \
     fi
   - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then \
       export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}; \
