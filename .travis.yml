@@ -41,7 +41,7 @@ addons:
       - g++-5
       - gcc-6
       - g++-6
-      - clang-3.6
+      - clang-3.8
       - bison
       - chrpath
       - cmake
