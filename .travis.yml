@@ -85,7 +85,7 @@ script:
   - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then
       export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION};
     fi
-  - sed -i -e 's/\(libboost\)\(-dev\)/\11.55\2/' debian/rules
+  - sed -i -e 's/libboost-dev/libboost1.55-dev/' debian/rules
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - export MYSQL_COMPILER_LAUNCHER=ccache
   - cd "${TRAVIS_BUILD_DIR}"
