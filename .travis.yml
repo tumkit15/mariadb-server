@@ -66,7 +66,7 @@ addons:
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
-  - export MYSQL_BUILD_CC=/usr/bin/${COMPILER}
+  - export MYSQL_BUILD_CC=/usr/bin/${COMPILER} MYSQL_COMPILER_LAUNCHER=ccache
   - case $COMPILER in gcc*) export MYSQL_BUILD_CXX=/usr/bin/${COMPILER/cc/++} ;; clang*) export MYSQL_BUILD_CXX=/usr/bin/${COMPILER/-/++-} ;; esac
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
