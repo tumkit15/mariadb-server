@@ -68,6 +68,8 @@ script:
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
   - free -m
+  - ls -la /dev/shm /run/shm
+  - mount
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
   - ccache --show-stats
