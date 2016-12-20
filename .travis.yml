@@ -64,6 +64,8 @@ addons:
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
+  - wget http://ftp.osuosl.org/pub/ubuntu/pool/main/c/ccache/ccache_3.3.3-1_amd64.deb
+  - sudo dpkg -i ccache_3.3.3-1_amd64.deb
   - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION} MYSQL_COMPILER_LAUNCHER=ccache
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
