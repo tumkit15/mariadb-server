@@ -64,13 +64,14 @@ addons:
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
-  - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}
-  - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
+  - export CC=gcc-${GCC_VERSION} CXX=g++-${GCC_VERSION}
+  - ${CC} --version ; ${CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
   - ls -la /usr/lib/ccache
   - wget http://ftp.osuosl.org/pub/ubuntu/pool/main/c/ccache/ccache_3.3.3-1_amd64.deb
   - sudo dpkg -i ccache_3.3.3-1_amd64.deb
   - ls -la /usr/lib/ccache
+  - which ${CC} ${CXX}
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
   - ccache --show-stats
