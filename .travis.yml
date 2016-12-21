@@ -66,6 +66,8 @@ addons:
 script:
   - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION} MYSQL_COMPILER_LAUNCHER=ccache
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
+  - wget http://ftp.osuosl.org/pub/ubuntu/pool/main/c/cmake/cmake-data_3.5.1-1ubuntu1_all.deb http://ftp.osuosl.org/pub/ubuntu/pool/main/c/cmake/cmake_3.5.1-1ubuntu1_amd64.deb
+  - sudo dpkg -i cmake-data_3.5.1-1ubuntu1_all.deb cmake_3.5.1-1ubuntu1_amd64.deb
   - cd "${TRAVIS_BUILD_DIR}"
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
