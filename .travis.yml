@@ -68,7 +68,7 @@ script:
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
 # https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable in trusty containers
-  - export MTR_MEM=/dev/shm
+#  - export MTR_MEM=/dev/shm
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
   - ccache --show-stats
