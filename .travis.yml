@@ -91,6 +91,10 @@ script:
     fi
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
+  - ls -la /usr/lib/ccache
+  - wget http://ftp.osuosl.org/pub/ubuntu/pool/main/c/ccache/ccache_3.3.3-1_amd64.deb
+  - sudo dpkg -i ccache_3.3.3-1_amd64.deb
+  - ls -la /usr/lib/ccache
   - ccache --zero-stats
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
   - ccache --show-stats
