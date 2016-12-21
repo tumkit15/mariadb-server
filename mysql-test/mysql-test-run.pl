@@ -1429,8 +1429,10 @@ sub command_line_setup {
 
     # Search through list of locations that are known
     # to be "fast disks" to find a suitable location
-    # Use $ENV{'MTR_MEM'} as first location to look.
-    my @tmpfs_locations= ($ENV{'MTR_MEM'},"/run/shm", "/dev/shm", "/tmp");
+    my @tmpfs_locations= ("/run/shm", "/dev/shm", "/tmp");
+
+    # Use $ENV{'MTR_MEM'} as first location to look (if defined)
+    unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
 
     foreach my $fs (@tmpfs_locations)
     {
