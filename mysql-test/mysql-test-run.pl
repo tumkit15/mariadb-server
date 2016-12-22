@@ -1457,6 +1457,10 @@ sub command_line_setup {
     # Use $ENV{'MTR_MEM'} as first location to look (if defined)
     unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
 
+    # /run/user/$UID is a shm directory on Fedora - smaller than /dev/shm
+    # however but quite usable. However /tmp/ was even tmpfs and bigger.
+    push(@tmpfs_locations, "/run/user/$UID") if defined $UID;
+
     foreach my $fs (@tmpfs_locations)
     {
       if ( -d $fs && -l $fs )
