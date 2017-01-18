@@ -26,6 +26,11 @@ then
   # Don't include test suite package on Travis-CI to make the build time shorter
   sed '/Package: mariadb-test-data/,+26d' -i debian/control
   sed '/Package: mariadb-test/,+34d' -i debian/control
+
+  # clang triggers far too many warnings in the mroonga storage engine
+  if [[ ${MYSQL_BUILD_CXX} =~ clang* ]]; then
+    export CMAKEFLAGS=-DWITHOUT_MROONGA_STORAGE_ENGINE=1
+  fi
 fi
 
 
