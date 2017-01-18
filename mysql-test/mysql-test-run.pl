@@ -243,7 +243,7 @@ sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
 our $opt_force= 0;
-our $opt_mem= $ENV{'MTR_MEM'};
+our $opt_mem= $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
@@ -1422,12 +1422,14 @@ sub command_line_setup {
 
     # Search through list of locations that are known
     # to be "fast disks" to find a suitable location
-    # Use --mem=<dir> as first location to look.
-    my @tmpfs_locations= ($opt_mem,"/run/shm", "/dev/shm", "/tmp");
+    my @tmpfs_locations= ("/run/shm", "/dev/shm", "/tmp");
+
+    # Use $ENV{'MTR_MEM'} as first location to look (if defined)
+    unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
 
     foreach my $fs (@tmpfs_locations)
     {
-      if ( -d $fs )
+      if ( -d $fs && -l $fs )
       {
 	my $template= "var_${opt_build_thread}_XXXX";
 	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
