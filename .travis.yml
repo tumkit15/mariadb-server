@@ -14,6 +14,7 @@ cache:
 
 env:
   matrix:
+    - COMPILER=gcc-4.8
     - COMPILER=gcc-5
     - COMPILER=gcc-6
     - COMPILER=clang-3.6
