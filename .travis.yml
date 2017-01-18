@@ -2,7 +2,7 @@
 # travis-ci.org definition
 
 # non-container builds don't have enough RAM to reliably compile
-sudo: required
+sudo: false
 dist: trusty
 
 language: cpp
@@ -14,23 +14,25 @@ cache:
 
 env:
   matrix:
-    - GCC_VERSION=5
-    - GCC_VERSION=6
+    - COMPILER=gcc-5
+    - COMPILER=gcc-6
+    - COMPILER=clang-3.6
+    - COMPILER=clang-3.9
+    - COMPILER=clang-4.0
 addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-# below requires https://github.com/travis-ci/apt-source-whitelist/pull/309
-#      - llvm-toolchain-trusty-3.8
-#      - llvm-toolchain-trusty-3.9
-# llvm urls awaiting fix
-# https://github.com/travis-ci/apt-source-whitelist/pull/288
-# https://github.com/travis-ci/apt-source-whitelist/pull/309
+      - llvm-toolchain-trusty-3.9
+      - llvm-toolchain-trusty-4.0
     packages: # make sure these match debian/control contents
       - gcc-5
       - g++-5
       - gcc-6
       - g++-6
+      - clang-3.6
+      - clang-3.9
+      - clang-4.0
       - bison
       - chrpath
       - cmake
@@ -64,7 +66,8 @@ addons:
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
-  - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}
+  - export MYSQL_BUILD_CC=/usr/bin/${COMPILER}
+  - case $COMPILER in gcc*) export MYSQL_BUILD_CXX=/usr/bin/${COMPILER/cc/++} ;; clang*) export MYSQL_BUILD_CXX=/usr/bin/${COMPILER/-/++-} ;; esac
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
   - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
