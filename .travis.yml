@@ -68,6 +68,7 @@ addons:
       - devscripts # implicit for any build on Ubuntu
 
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
+# resubmit after https://github.com/travis-ci/apt-package-whitelist/issues/2449 is closed
 
 script:
   - export MYSQL_BUILD_CC=/usr/bin/${COMPILER} MYSQL_COMPILER_LAUNCHER=ccache
