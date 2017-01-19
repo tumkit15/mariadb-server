@@ -15,7 +15,7 @@ cache:
 env:
   global:
 # workaround for https://github.com/travis-ci/travis-ci/issues/7062
-    - MTR_MEM=/dev/shm
+    - MTR_MEM=/tmp
   matrix:
     - COMPILER=gcc-4.8
     - COMPILER=gcc-5
