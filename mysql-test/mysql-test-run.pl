@@ -1429,10 +1429,12 @@ sub command_line_setup {
 
     foreach my $fs (@tmpfs_locations)
     {
+      mtr_report("Checking location $fs for opt_mem");
       if ( -d $fs && -l $fs )
       {
 	my $template= "var_${opt_build_thread}_XXXX";
 	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
+        mtr_report("Checking location $fs selected for opt_mem ($opt_mem)");
 	last;
       }
     }
