@@ -31,7 +31,7 @@ then
   # also triggers compile errors in Tokudb:
   # storage/tokudb/PerconaFT/portability/toku_portability.h:134:68: error: attribute declaration must precede definition [-Werror,-Wignored-attributes]
   if [[ ${MYSQL_BUILD_CXX} =~ clang* ]]; then
-    export CMAKEFLAGS=-DWITHOUT_MROONGA_STORAGE_ENGINE=1 -DWITHOUT_TOKUDB_STORAGE_ENGINE=1
+    export CMAKEFLAGS="-DWITHOUT_MROONGA_STORAGE_ENGINE=1 -DWITHOUT_TOKUDB_STORAGE_ENGINE=1"
   fi
 fi
 
