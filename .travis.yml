@@ -62,11 +62,11 @@ addons:
       - zlib1g-dev
       - libcrack2-dev
       - libjemalloc-dev
+      - libsnappy-dev
+      - liblzma-dev
+      - libzmq-dev
       - devscripts # implicit for any build on Ubuntu
 
-# libsnappy-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3880
-# liblzma-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3879
-# libzmq-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3881
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
 script:
