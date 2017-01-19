@@ -56,12 +56,14 @@ addons:
       - zlib1g-dev
       - libcrack2-dev
       - libjemalloc-dev
+      - libsnappy-dev
+      - liblzma-dev
+      - libzmq-dev
+      - libdistro-info-perl
       - devscripts # implicit for any build on Ubuntu
 
-# libsnappy-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3880
-# liblzma-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3879
-# libzmq-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3881
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
+# resubmit after https://github.com/travis-ci/apt-package-whitelist/issues/2449 is closed
 
 script:
   - export MYSQL_BUILD_CC=/usr/bin/gcc-${GCC_VERSION} MYSQL_BUILD_CXX=/usr/bin/g++-${GCC_VERSION}
