@@ -4127,7 +4127,7 @@ public:
 
   bool handle_condition(THD * /* thd */, uint sql_errno,
                         const char * /* sqlstate */,
-                        Sql_condition::enum_warning_level /* level */,
+                        Sql_condition::enum_warning_level* /* level */,
                         const char *message,
                         Sql_condition ** /* cond_hdl */);
 };
@@ -4136,7 +4136,7 @@ bool
 Lock_wait_timeout_handler::
 handle_condition(THD *thd, uint sql_errno,
                  const char * /* sqlstate */,
-                 Sql_condition::enum_warning_level /* level */,
+                 Sql_condition::enum_warning_level* /* level */,
                  const char *message,
                  Sql_condition ** /* cond_hdl */)
 {
@@ -4302,7 +4302,8 @@ longlong Item_func_release_lock::val_int()
 
   User_level_lock *ull;
 
-  if (!(ull=
+  if (!my_hash_inited(&thd->ull_hash) ||
+      !(ull=
         (User_level_lock*) my_hash_search(&thd->ull_hash,
                                           ull_key.ptr(), ull_key.length())))
   {
@@ -4579,7 +4580,7 @@ longlong Item_func_sleep::val_int()
 
 bool Item_func_user_var::check_vcol_func_processor(void *arg)
 {
-  return mark_unsupported_function("@", name.str, arg, VCOL_IMPOSSIBLE);
+  return mark_unsupported_function("@", name.str, arg, VCOL_NON_DETERMINISTIC);
 }
 
 #define extra_size sizeof(double)
@@ -6596,7 +6597,8 @@ Item_func_sp::init_result_field(THD *thd)
 
 bool Item_func_sp::is_expensive()
 {
-  return !(m_sp->m_chistics->detistic);
+  return !m_sp->m_chistics->detistic ||
+          current_thd->locked_tables_mode < LTM_LOCK_TABLES;
 }
 
 

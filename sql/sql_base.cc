@@ -68,7 +68,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              Sql_condition::enum_warning_level level,
+                                              Sql_condition::enum_warning_level *level,
                                               const char*,
                                               Sql_condition ** cond_hdl)
 {
@@ -79,7 +79,7 @@ No_such_table_error_handler::handle_condition(THD *,
     return TRUE;
   }
 
-  if (level == Sql_condition::WARN_LEVEL_ERROR)
+  if (*level == Sql_condition::WARN_LEVEL_ERROR)
     m_unhandled_errors++;
   return FALSE;
 }
@@ -112,7 +112,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_warning_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -142,7 +142,7 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 Sql_condition::enum_warning_level level,
+                                                 Sql_condition::enum_warning_level *level,
                                                  const char*,
                                                  Sql_condition ** cond_hdl)
 {
@@ -1254,7 +1254,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_warning_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -1273,7 +1273,7 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            Sql_condition::enum_warning_level,
+                                            Sql_condition::enum_warning_level*,
                                             const char*,
                                             Sql_condition ** cond_hdl)
 {
@@ -1495,7 +1495,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     Note that we allow write locks on log tables as otherwise logging
     to general/slow log would be disabled in read only transactions.
   */
-  if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+  if (table_list->mdl_request.is_write_lock_request() &&
       thd->tx_read_only &&
       !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)))
   {
@@ -1654,7 +1654,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
             pre-acquiring metadata locks at the beggining of
             open_tables() call.
     */
-    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+    if (table_list->mdl_request.is_write_lock_request() &&
         ! (flags & (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                     MYSQL_OPEN_FORCE_SHARED_MDL |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
@@ -2146,11 +2146,6 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
     request for metadata locks and TABLE_LIST elements.
   */
   reset();
-  if (thd->variables.option_bits & OPTION_AUTOCOMMIT)
-  {
-    thd->variables.option_bits&= ~(OPTION_NOT_AUTOCOMMIT);
-    thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
-  }
 }
 
 
@@ -2839,7 +2834,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                   uint sql_errno,
                                   const char* sqlstate,
-                                  Sql_condition::enum_warning_level level,
+                                  Sql_condition::enum_warning_level *level,
                                   const char* msg,
                                   Sql_condition ** cond_hdl)
   {
@@ -3605,6 +3600,7 @@ lock_table_names(THD *thd, const DDL_options_st &options,
        table= table->next_global)
   {
     if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
+        table->mdl_request.type == MDL_SHARED_READ_ONLY ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -3728,6 +3724,11 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
+    /*
+      Check below needs to be updated if this function starts
+      called for SRO locks.
+    */
+    DBUG_ASSERT(table->mdl_request.type != MDL_SHARED_READ_ONLY);
     if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
@@ -4063,13 +4064,22 @@ restart:
     }
   }
 
-  if (WSREP_ON                                 &&
-      wsrep_replicate_myisam                   &&
-      (*start)                                 &&
-      (*start)->table                          &&
-      (*start)->table->file->ht == myisam_hton &&
-      sqlcom_can_generate_row_events(thd)      &&
-      thd->get_command() != COM_STMT_PREPARE)
+  if (WSREP_ON                                         &&
+      wsrep_replicate_myisam                           &&
+      (*start)                                         &&
+      (*start)->table                                  &&
+      (*start)->table->file->ht == myisam_hton         &&
+      wsrep_thd_exec_mode(thd) == LOCAL_STATE          &&
+      !is_stat_table((*start)->db, (*start)->alias)    &&
+      thd->get_command() != COM_STMT_PREPARE           &&
+      ((thd->lex->sql_command == SQLCOM_INSERT         ||
+        thd->lex->sql_command == SQLCOM_INSERT_SELECT  ||
+        thd->lex->sql_command == SQLCOM_REPLACE        ||
+        thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
+        thd->lex->sql_command == SQLCOM_UPDATE         ||
+        thd->lex->sql_command == SQLCOM_UPDATE_MULTI   ||
+        thd->lex->sql_command == SQLCOM_LOAD           ||
+        thd->lex->sql_command == SQLCOM_DELETE)))
   {
     WSREP_TO_ISOLATION_BEGIN(NULL, NULL, (*start));
   }
@@ -7890,7 +7900,6 @@ fill_record(THD *thd, TABLE *table_arg, List<Item> &fields, List<Item> &values,
       table_arg->update_default_fields(0, ignore_errors))
     goto err;
   /* Update virtual fields */
-  thd->abort_on_warning= FALSE;
   if (table_arg->vfield &&
       table_arg->update_virtual_fields(VCOL_UPDATE_FOR_WRITE))
     goto err;
@@ -7898,6 +7907,7 @@ fill_record(THD *thd, TABLE *table_arg, List<Item> &fields, List<Item> &values,
   thd->no_errors=        save_no_errors;
   DBUG_RETURN(thd->is_error());
 err:
+  DBUG_PRINT("error",("got error"));
   thd->abort_on_warning= save_abort_on_warning;
   thd->no_errors=        save_no_errors;
   if (fields.elements)
@@ -8033,17 +8043,14 @@ fill_record_n_invoke_before_triggers(THD *thd, TABLE *table,
       Re-calculate virtual fields to cater for cases when base columns are
       updated by the triggers.
     */
-    List_iterator_fast<Item> f(fields);
-    Item *fld;
-    Item_field *item_field;
-    if (fields.elements)
+    if (table->vfield && fields.elements)
     {
-      fld= (Item_field*)f++;
-      item_field= fld->field_for_view_update();
-      if (item_field && table->vfield)
+      Item *fld= (Item_field*) fields.head();
+      Item_field *item_field= fld->field_for_view_update();
+      if (item_field)
       {
         DBUG_ASSERT(table == item_field->field->table);
-        result= table->update_virtual_fields(VCOL_UPDATE_FOR_WRITE);
+        result|= table->update_virtual_fields(VCOL_UPDATE_FOR_WRITE);
       }
     }
   }
@@ -8436,6 +8443,7 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
   */
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
+  thd->lex->sql_command= SQLCOM_SELECT;
 
   if (open_and_lock_tables(thd, table_list, FALSE,
                            MYSQL_OPEN_IGNORE_FLUSH |

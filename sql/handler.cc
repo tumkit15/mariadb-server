@@ -4974,7 +4974,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_warning_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -4987,7 +4987,7 @@ public:
       return TRUE;
     }
 
-    if (level == Sql_condition::WARN_LEVEL_ERROR)
+    if (*level == Sql_condition::WARN_LEVEL_ERROR)
       m_unhandled_errors++;
     return FALSE;
   }
@@ -5926,6 +5926,10 @@ static int check_wsrep_max_ws_rows()
   if (wsrep_max_ws_rows)
   {
     THD *thd= current_thd;
+
+    if (!WSREP(thd))
+      return 0;
+
     thd->wsrep_affected_rows++;
     if (thd->wsrep_exec_mode != REPL_RECV &&
         thd->wsrep_affected_rows > wsrep_max_ws_rows)

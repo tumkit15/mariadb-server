@@ -35,11 +35,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "row0types.h"
 #include "rem0types.h"
 #include "btr0types.h"
-#ifndef UNIV_HOTBACKUP
-# include "lock0types.h"
-# include "que0types.h"
-# include "sync0rw.h"
-#endif /* !UNIV_HOTBACKUP */
+#include "lock0types.h"
+#include "que0types.h"
+#include "sync0rw.h"
 #include "ut0mem.h"
 #include "ut0rnd.h"
 #include "ut0byte.h"
@@ -50,7 +48,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "gis0type.h"
 #include "os0once.h"
 #include "ut0new.h"
-
 #include "fil0fil.h"
 #include <my_crypt.h>
 #include "fil0crypt.h"
@@ -140,12 +137,8 @@ This flag prevents older engines from attempting to open the table and
 allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_WIDTH_DATA_DIR		1
 
-/** Width of the SHARED tablespace flag.
-It is used to identify tables that exist inside a shared general tablespace.
-If a table is created with the TABLESPACE=tsname option, an older engine will
-not be able to find that table. This flag prevents older engines from attempting
-to open the table and allows InnoDB to quickly find the tablespace. */
-
+/** Width of the SHARED tablespace flag (Oracle MYSQL 5.7).
+Not supported by MariaDB. */
 #define DICT_TF_WIDTH_SHARED_SPACE	1
 
 /**
@@ -229,10 +222,6 @@ DEFAULT=0, ON = 1, OFF = 2
 #define DICT_TF_MASK_DATA_DIR				\
 		((~(~0U << DICT_TF_WIDTH_DATA_DIR))	\
 		<< DICT_TF_POS_DATA_DIR)
-/** Bit mask of the SHARED_SPACE field */
-#define DICT_TF_MASK_SHARED_SPACE			\
-		((~(~0U << DICT_TF_WIDTH_SHARED_SPACE))	\
-		<< DICT_TF_POS_SHARED_SPACE)
 /** Bit mask of the PAGE_COMPRESSION field */
 #define DICT_TF_MASK_PAGE_COMPRESSION			\
 		((~(~0U << DICT_TF_WIDTH_PAGE_COMPRESSION)) \
@@ -270,10 +259,6 @@ DEFAULT=0, ON = 1, OFF = 2
 #define DICT_TF_HAS_DATA_DIR(flags)			\
 		((flags & DICT_TF_MASK_DATA_DIR)	\
 		>> DICT_TF_POS_DATA_DIR)
-/** Return the value of the SHARED_SPACE field */
-#define DICT_TF_HAS_SHARED_SPACE(flags)			\
-		((flags & DICT_TF_MASK_SHARED_SPACE)	\
-		>> DICT_TF_POS_SHARED_SPACE)
 /** Return the value of the PAGE_COMPRESSION field */
 #define DICT_TF_GET_PAGE_COMPRESSION(flags)	       \
 		((flags & DICT_TF_MASK_PAGE_COMPRESSION) \
@@ -310,7 +295,8 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			9
-#define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
+#define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS | \
+					 1U << DICT_TF_POS_SHARED_SPACE)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -336,9 +322,6 @@ use its own tablespace instead of the system tablespace. */
 /** This bit is set if all aux table names (both common tables and
 index tables) of a FTS table are in HEX format. */
 #define DICT_TF2_FTS_AUX_HEX_NAME	64
-
-/** Encryption table bit. */
-#define DICT_TF2_ENCRYPTION		256
 
 /* @} */
 
@@ -869,7 +852,6 @@ struct dict_index_t{
 	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
 	dict_table_t*	table;	/*!< back pointer to table */
-#ifndef UNIV_HOTBACKUP
 	unsigned	space:32;
 				/*!< space where the index tree is placed */
 	unsigned	page:32;/*!< index tree root page number */
@@ -878,7 +860,6 @@ struct dict_index_t{
 				data size drops below this limit in percent,
 				merging it to a neighbor is tried */
 # define DICT_INDEX_MERGE_THRESHOLD_DEFAULT 50
-#endif /* !UNIV_HOTBACKUP */
 	unsigned	type:DICT_IT_BITS;
 				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
 				DICT_IBUF, DICT_CORRUPT) */
@@ -940,7 +921,6 @@ struct dict_index_t{
 	bool		has_new_v_col;
 				/*!< whether it has a newly added virtual
 				column in ALTER */
-#ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
 	btr_search_t*	search_info;
@@ -1028,7 +1008,6 @@ struct dict_index_t{
 		ut_ad(committed || !(type & DICT_CLUSTERED));
 		uncommitted = !committed;
 	}
-#endif /* !UNIV_HOTBACKUP */
 };
 
 /** The status of online index creation */
@@ -1372,6 +1351,8 @@ struct dict_table_t {
 	inline void acquire();
 
 	void*		thd;		/*!< thd */
+	bool		page_0_read; /*!< true if page 0 has
+				     been already read */
 	fil_space_crypt_t *crypt_data; /*!< crypt data if present */
 
 	/** Release the table handle. */
@@ -1394,18 +1375,8 @@ struct dict_table_t {
 	/** Table name. */
 	table_name_t				name;
 
-	/** NULL or the directory path where a TEMPORARY table that was
-	explicitly created by a user should be placed if innodb_file_per_table
-	is defined in my.cnf. In Unix this is usually "/tmp/...",
-	in Windows "temp\...". */
-	const char*				dir_path_of_temp_table;
-
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
-
-	/** NULL or the tablespace name that this table is assigned to,
-	specified by the TABLESPACE option.*/
-	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
 	uint32_t				space;
@@ -1466,6 +1437,11 @@ struct dict_table_t {
 	/** Number of virtual columns. */
 	unsigned                                n_v_cols:10;
 
+	/** 1 + the position of autoinc counter field in clustered
+	index, or 0 if there is no persistent AUTO_INCREMENT column in
+	the table. */
+	unsigned				persistent_autoinc:10;
+
 	/** TRUE if it's not an InnoDB system table or a table that has no FK
 	relationships. */
 	unsigned				can_be_evicted:1;
@@ -1507,7 +1483,6 @@ struct dict_table_t {
 				/*!< !DICT_FRM_CONSISTENT==0 if data
 				dictionary information and
 				MySQL FRM information mismatch. */
-#ifndef UNIV_HOTBACKUP
 	/** Hash chain node. */
 	hash_node_t				name_hash;
 
@@ -1768,8 +1743,6 @@ public:
 	/** Timestamp of the last modification of this table. */
 	time_t					update_time;
 
-#endif /* !UNIV_HOTBACKUP */
-
 	bool					is_encrypted;
 
 #ifdef UNIV_DEBUG
@@ -1782,12 +1755,6 @@ public:
 	/** mysql_row_templ_t for base columns used for compute the virtual
 	columns */
 	dict_vcol_templ_t*			vc_templ;
-
-	/** encryption key, it's only for export/import */
-	byte*					encryption_key;
-
-	/** encryption iv, it's only for export/import */
-	byte*					encryption_iv;
 };
 
 /*******************************************************************//**
