@@ -523,6 +523,7 @@ void init_update_queries(void)
   server_command_flags[COM_STMT_RESET]= CF_SKIP_QUESTIONS | CF_SKIP_WSREP_CHECK;
   server_command_flags[COM_STMT_EXECUTE]= CF_SKIP_WSREP_CHECK;
   server_command_flags[COM_STMT_SEND_LONG_DATA]= CF_SKIP_WSREP_CHECK;
+  server_command_flags[COM_REGISTER_SLAVE]= CF_SKIP_WSREP_CHECK;
   server_command_flags[COM_MULTI]= CF_SKIP_WSREP_CHECK | CF_NO_COM_MULTI;
 
   /* Initialize the sql command flags array. */
@@ -2728,27 +2729,76 @@ bool sp_process_definer(THD *thd)
 static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  MDL_deadlock_and_lock_abort_error_handler deadlock_handler;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   uint counter;
   TABLE_LIST *table;
 
   thd->in_lock_tables= 1;
 
+retry:
+
   if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
     goto err;
 
-  /*
-    We allow to change temporary tables even if they were locked for read
-    by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
-    TABLES time and by the statement which is later executed under LOCK TABLES
-    we ensure that for temporary tables we always request a write lock (such
-    discrepancy can cause problems for the storage engine).
-    We don't set TABLE_LIST::lock_type in this case as this might result in
-    extra warnings from THD::decide_logging_format() even though binary logging
-    is totally irrelevant for LOCK TABLES.
-  */
   for (table= tables; table; table= table->next_global)
-    if (!table->placeholder() && table->table->s->tmp_table)
-      table->table->reginfo.lock_type= TL_WRITE;
+  {
+    if (!table->placeholder())
+    {
+      if (table->table->s->tmp_table)
+      {
+        /*
+          We allow to change temporary tables even if they were locked for read
+          by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
+          TABLES time and by the statement which is later executed under LOCK
+          TABLES we ensure that for temporary tables we always request a write
+          lock (such discrepancy can cause problems for the storage engine).
+          We don't set TABLE_LIST::lock_type in this case as this might result
+          in extra warnings from THD::decide_logging_format() even though
+          binary logging is totally irrelevant for LOCK TABLES.
+        */
+        table->table->reginfo.lock_type= TL_WRITE;
+      }
+      else if (table->mdl_request.type == MDL_SHARED_READ &&
+               ! table->prelocking_placeholder &&
+               table->table->file->lock_count() == 0)
+      {
+        /*
+          In case when LOCK TABLE ... READ LOCAL was issued for table with
+          storage engine which doesn't support READ LOCAL option and doesn't
+          use THR_LOCK locks we need to upgrade weak SR metadata lock acquired
+          in open_tables() to stronger SRO metadata lock.
+          This is not needed for tables used through stored routines or
+          triggers as we always acquire SRO (or even stronger SNRW) metadata
+          lock for them.
+        */
+        deadlock_handler.init();
+        thd->push_internal_handler(&deadlock_handler);
+
+        bool result= thd->mdl_context.upgrade_shared_lock(
+                                        table->table->mdl_ticket,
+                                        MDL_SHARED_READ_ONLY,
+                                        thd->variables.lock_wait_timeout);
+
+        thd->pop_internal_handler();
+
+        if (deadlock_handler.need_reopen())
+        {
+          /*
+            Deadlock occurred during upgrade of metadata lock.
+            Let us restart acquring and opening tables for LOCK TABLES.
+          */
+          close_tables_for_reopen(thd, &tables, mdl_savepoint);
+          if (thd->open_temporary_tables(tables))
+            goto err;
+          goto retry;
+        }
+
+        if (result)
+          goto err;
+      }
+    }
+  }
 
   if (lock_tables(thd, tables, counter, 0) ||
       thd->locked_tables_list.init_locked_tables(thd))
@@ -3031,7 +3081,7 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 #ifdef WITH_WSREP
-  if (WSREP(thd))
+  if  (wsrep && WSREP(thd))
   {
     /*
       change LOCK TABLE WRITE to transaction
@@ -3057,13 +3107,18 @@ mysql_execute_command(THD *thd)
     }
 
     /*
-      Bail out if DB snapshot has not been installed. We however, allow SET,
-      SHOW and SELECT queries (only if wsrep_dirty_reads is set).
+      Bail out if DB snapshot has not been installed. SET and SHOW commands,
+      however, are always allowed.
+      Select query is also allowed if it does not access any table.
+      We additionally allow all other commands that do not change data in
+      case wsrep_dirty_reads is enabled.
     */
     if (lex->sql_command != SQLCOM_SET_OPTION  &&
         !wsrep_is_show_query(lex->sql_command) &&
         !(thd->variables.wsrep_dirty_reads     &&
-          lex->sql_command == SQLCOM_SELECT)   &&
+          !is_update_query(lex->sql_command))  &&
+        !(lex->sql_command == SQLCOM_SELECT    &&
+          !all_tables)                         &&
         !wsrep_node_is_ready(thd))
       goto error;
   }
@@ -3350,6 +3405,10 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_PROFILE:
   {
+#ifdef WITH_WSREP
+    DBUG_ASSERT(thd->wsrep_exec_mode != REPL_RECV);
+#endif /* WITH_WSREP */
+
     thd->status_var.last_query_cost= 0.0;
 
     /*
@@ -3675,12 +3734,6 @@ mysql_execute_command(THD *thd)
       create_info.default_table_charset= create_info.table_charset;
       create_info.table_charset= 0;
     }
-
-    /*
-      For CREATE TABLE we should not open the table even if it exists.
-      If the table exists, we should either not create it or replace it
-    */
-    lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
 
     /*
       If we are a slave, we should add OR REPLACE if we don't have
@@ -4785,8 +4838,7 @@ end_with_restore_list:
     if (lock_tables_precheck(thd, all_tables))
       goto error;
 
-    thd->variables.option_bits|= OPTION_TABLE_LOCK | OPTION_NOT_AUTOCOMMIT;
-    thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
+    thd->variables.option_bits|= OPTION_TABLE_LOCK;
 
     res= lock_tables_open_and_lock_tables(thd, all_tables);
 
@@ -9392,12 +9444,6 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   if (check_fk_parent_table_access(thd, &lex->create_info, &lex->alter_info, create_table->db))
     goto err;
-
-  /*
-    For CREATE TABLE we should not open the table even if it exists.
-    If the table exists, we should either not create it or replace it
-  */
-  lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
 
   error= FALSE;
 

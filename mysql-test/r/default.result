@@ -223,6 +223,50 @@ NULL
 drop table t1, t2;
 # End of 5.0 tests
 #
+# Start of 10.0 tests
+#
+#
+# MDEV-11265 Access defied when CREATE VIIEW v1 AS SELECT DEFAULT(column) FROM t1
+#
+CREATE TABLE t1 (a INT DEFAULT 10);
+INSERT INTO t1 VALUES (11);
+CREATE VIEW v1 AS SELECT a AS a FROM t1;
+CREATE VIEW v2 AS SELECT DEFAULT(a) AS a FROM t1;
+CREATE VIEW v3 AS SELECT VALUES(a) AS a FROM t1;
+SELECT * FROM v1;
+a
+11
+SELECT * FROM v2;
+a
+10
+SELECT * FROM v3;
+a
+NULL
+UPDATE v2 SET a=123;
+ERROR HY000: Column 'a' is not updatable
+UPDATE v3 SET a=123;
+ERROR HY000: Column 'a' is not updatable
+DROP VIEW v3;
+DROP VIEW v2;
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# MDEV-10780 Server crashes in in create_tmp_table
+#
+connect  con1,localhost,root,,test;
+CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+SELECT DISTINCT DEFAULT (pk) FROM t1 GROUP BY RAND() WITH ROLLUP;
+DEFAULT (pk)
+0
+disconnect con1;
+connection default;
+DROP TABLE t1;
+#
+# End of 10.0 tests
+#
+#
 # Start of 10.1 tests
 #
 CREATE TABLE t1 (a INT DEFAULT 100, b INT DEFAULT NULL);
@@ -436,6 +480,10 @@ a	b
 2	2
 3	4
 drop table t1;
+CREATE OR REPLACE TABLE t1 (a INT DEFAULT @v);
+drop table t1;
+CREATE TABLE t1 (a INT DEFAULT @v:=1);
+drop table t1;
 #
 # Error handling
 #
@@ -472,10 +520,6 @@ CREATE TABLE t1 (a INT DEFAULT(?));
 Got one of the listed errors
 CREATE TABLE t1 (a INT DEFAULT (b), b INT DEFAULT(a));
 ERROR 01000: Expression for field `a` is refering to uninitialized field `b`
-CREATE TABLE t1 (a INT DEFAULT @v);
-ERROR HY000: Function or expression '@v' cannot be used in the DEFAULT clause of `a`
-CREATE TABLE t1 (a INT DEFAULT @v:=1);
-ERROR HY000: Function or expression '@v' cannot be used in the DEFAULT clause of `a`
 CREATE TABLE t1 (a INT DEFAULT(NAME_CONST('xxx', 'yyy'));
 ERROR HY000: Function or expression 'name_const()' cannot be used in the DEFAULT clause of `a`
 CREATE TABLE t1 (a INT DEFAULT COUNT(*));

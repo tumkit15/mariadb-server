@@ -6781,7 +6781,7 @@ ER_FK_COLUMN_NOT_NULL
         ger "Spalte '%-.192s' kann nicht NOT NULL sein: wird für eine Fremdschlüsselbeschränkung '%-.192s' SET NULL benötigt"
 
 ER_DUP_INDEX
-  eng "Duplicate index '%-.64s' defined on the table '%-.64s.%-.64s'. This is deprecated and will be disallowed in a future release"
+  eng "Duplicate index %`s. This is deprecated and will be disallowed in a future release"
 
 ER_FK_COLUMN_CANNOT_CHANGE
   eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s'"
@@ -7438,3 +7438,5 @@ ER_JSON_PATH_ARRAY
         eng "JSON path should end with an array identifier in argument %d to function '%s'"
 ER_JSON_ONE_OR_ALL
         eng "Argument 2 to function '%s' must be "one" or "all"."
+ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+	eng "CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE."

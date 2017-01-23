@@ -173,8 +173,6 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	const dtuple_t*	add_cols;
 	/** autoinc sequence to use */
 	ib_sequence_t	sequence;
-	/** maximum auto-increment value */
-	ulonglong	max_autoinc;
 	/** temporary table name to use for old table when renaming tables */
 	const char*	tmp_name;
 	/** whether the order of the clustered index is unchanged */
@@ -224,7 +222,6 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		add_cols (0),
 		sequence(prebuilt->trx->mysql_thd,
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
-		max_autoinc (0),
 		tmp_name (0),
 		skip_pk_sort(false),
 		num_to_add_vcol(0),
@@ -591,21 +588,6 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
-#ifdef MYSQL_ENCRYPTION
-	/* We don't support change encryption attribute with
-	inplace algorithm. */
-	char*	old_encryption = this->table->s->encrypt_type.str;
-	char*	new_encryption = altered_table->s->encrypt_type.str;
-
-	if (Encryption::is_none(old_encryption)
-	    != Encryption::is_none(new_encryption)) {
-		ha_alter_info->unsupported_reason =
-			innobase_get_err_msg(
-				ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE);
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	}
-#endif /* MYSQL_ENCRYPTION */
-
 	update_thd();
 	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
@@ -617,8 +599,7 @@ ha_innobase::check_if_supported_inplace_alter(
 		ha_table_option_struct *old_options= table->s->option_struct;
 
 		if (new_options->page_compressed != old_options->page_compressed ||
-		    new_options->page_compression_level != old_options->page_compression_level ||
-			new_options->atomic_writes != old_options->atomic_writes) {
+		    new_options->page_compression_level != old_options->page_compression_level) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
@@ -1917,7 +1898,7 @@ innobase_row_to_mysql(
 	}
 	if (table->vfield) {
 		my_bitmap_map*	old_vcol_set = tmp_use_all_columns(table, table->vcol_set);
-		table->update_virtual_fields(VCOL_UPDATE_FOR_READ_WRITE);
+		table->update_virtual_fields(VCOL_UPDATE_FOR_READ);
 		tmp_restore_column_map(table->vcol_set, old_vcol_set);
 	}
 }
@@ -4377,7 +4358,6 @@ prepare_inplace_alter_table_dict(
 	dict_index_t*		fts_index	= NULL;
 	ulint			new_clustered	= 0;
 	dberr_t			error;
-	const char*		punch_hole_warning = NULL;
 	ulint			num_fts_index;
 	dict_add_v_col_t*	add_v = NULL;
 	ha_innobase_inplace_ctx*ctx;
@@ -4553,7 +4533,6 @@ prepare_inplace_alter_table_dict(
 		ulint		z = 0;
 		ulint		key_id = FIL_DEFAULT_ENCRYPTION_KEY;
 		fil_encryption_t mode = FIL_SPACE_ENCRYPTION_DEFAULT;
-		const char*	compression=NULL;
 
 		crypt_data = fil_space_get_crypt_data(ctx->prebuilt->table->space);
 
@@ -4598,20 +4577,6 @@ prepare_inplace_alter_table_dict(
 			my_error(ER_TABLE_EXISTS_ERROR, MYF(0),
 				 new_table_name);
 			goto new_clustered_failed;
-		}
-
-		/* Use the old tablespace unless the tablespace
-		is changing. */
-		if (DICT_TF_HAS_SHARED_SPACE(user_table->flags)
-		    && (ha_alter_info->create_info->tablespace == NULL
-			|| (0 == strcmp(ha_alter_info->create_info->tablespace,
-					user_table->tablespace)))) {
-			space_id = user_table->space;
-		} else if (tablespace_is_shared_space(
-				ha_alter_info->create_info)) {
-			space_id = fil_space_get_id_by_name(
-				ha_alter_info->create_info->tablespace);
-			ut_a(space_id != ULINT_UNDEFINED);
 		}
 
 		/* The initial space id 0 may be overridden later if this
@@ -4751,39 +4716,11 @@ prepare_inplace_alter_table_dict(
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
 		}
 
-#ifdef MYSQL_COMPRESSION
-		compression = ha_alter_info->create_info->compress.str;
-
-		if (Compression::validate(compression) != DB_SUCCESS) {
-
-			compression = NULL;
-		}
-#endif /* MYSQL_COMPRESSION */
-
 		error = row_create_table_for_mysql(
-			ctx->new_table, compression, ctx->trx, false, mode, key_id);
-
-		punch_hole_warning =
-			(error == DB_IO_NO_PUNCH_HOLE_FS)
-			? "Punch hole is not supported by the file system"
-			: "Page Compression is not supported for this"
-			  " tablespace";
+			ctx->new_table, ctx->trx, false, mode, key_id);
 
 		switch (error) {
 			dict_table_t*	temp_table;
-		case DB_IO_NO_PUNCH_HOLE_FS:
-		case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
-			push_warning_printf(
-				ctx->prebuilt->trx->mysql_thd,
-				Sql_condition::WARN_LEVEL_WARN,
-				HA_ERR_UNSUPPORTED,
-				"%s. Compression disabled for '%s'",
-				punch_hole_warning,
-				ctx->new_table->name.m_name);
-
-			error = DB_SUCCESS;
-
-
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
 			before we can use it we need to open the
@@ -4974,6 +4911,23 @@ new_clustered_failed:
 
 		DBUG_EXECUTE_IF("innodb_alter_table_pk_assert_no_sort",
 			DBUG_ASSERT(ctx->skip_pk_sort););
+
+		DBUG_ASSERT(!ctx->new_table->persistent_autoinc);
+		if (const Field* ai = altered_table->found_next_number_field) {
+			const unsigned	col_no = innodb_col_no(ai);
+
+			ctx->new_table->persistent_autoinc = 1
+				+ dict_table_get_nth_col_pos(
+					ctx->new_table, col_no, NULL);
+
+			/* Initialize the AUTO_INCREMENT sequence
+			to the rebuilt table from the old one. */
+			if (!old_table->found_next_number_field) {
+			} else if (ib_uint64_t autoinc
+				   = btr_read_autoinc(clust_index)) {
+				btr_write_autoinc(new_clust_index, autoinc);
+			}
+		}
 
 		if (ctx->online) {
 			/* Allocate a log for online table rebuild. */
@@ -5628,37 +5582,15 @@ ha_innobase::prepare_inplace_alter_table(
 	/* ALTER TABLE will not implicitly move a table from a single-table
 	tablespace to the system tablespace when innodb_file_per_table=OFF.
 	But it will implicitly move a table from the system tablespace to a
-	single-table tablespace if innodb_file_per_table = ON.
-	Tables found in a general tablespace will stay there unless ALTER
-	TABLE contains another TABLESPACE=name.  If that is found it will
-	explicitly move a table to the named tablespace.
-	So if you specify TABLESPACE=`innodb_system` a table can be moved
-	into the system tablespace from either a general or file-per-table
-	tablespace. But from then on, it is labeled as using a shared space
-	(the create options have tablespace=='innodb_system' and the
-	SHARED_SPACE flag is set in the table flags) so it can no longer be
-	implicitly moved to a file-per-table tablespace. */
-	bool	in_system_space = is_system_tablespace(indexed_table->space);
-	bool	is_file_per_table = !in_system_space
-			&& !DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
-#ifdef UNIV_DEBUG
-	bool	in_general_space = !in_system_space
-			&& DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
-
-	/* The table being altered can only be in a system tablespace,
-	or its own file-per-table tablespace, or a general tablespace. */
-	ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
-#endif /* UNIV_DEBUG */
+	single-table tablespace if innodb_file_per_table = ON. */
 
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
 				     NULL,
-				     NULL,
-				     NULL,
 				     NULL);
 
-	info.set_tablespace_type(is_file_per_table);
+	info.set_tablespace_type(indexed_table->space != TRX_SYS_SPACE);
 
 	if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX) {
 		if (info.gcols_in_fulltext_or_spatial()) {
@@ -6053,7 +5985,7 @@ check_if_can_drop_indexes:
 
 			if (!index->to_be_dropped && dict_index_is_corrupted(index)) {
 				my_error(ER_INDEX_CORRUPT, MYF(0), index->name());
-				DBUG_RETURN(true);
+				goto err_exit;
 			}
 		}
 	}
@@ -7400,83 +7332,120 @@ innobase_rename_or_enlarge_columns_cache(
 	}
 }
 
-/** Get the auto-increment value of the table on commit.
+/** Set the auto-increment value of the table on commit.
 @param ha_alter_info Data used during in-place alter
 @param ctx In-place ALTER TABLE context
 @param altered_table MySQL table that is being altered
-@param old_table MySQL table as it is before the ALTER operation
-@return the next auto-increment value (0 if not present) */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
-ulonglong
-commit_get_autoinc(
-/*===============*/
+@param old_table MySQL table as it is before the ALTER operation */
+static MY_ATTRIBUTE((nonnull))
+void
+commit_set_autoinc(
 	Alter_inplace_info*	ha_alter_info,
 	ha_innobase_inplace_ctx*ctx,
 	const TABLE*		altered_table,
 	const TABLE*		old_table)
 {
-	ulonglong		max_autoinc;
-
 	DBUG_ENTER("commit_get_autoinc");
 
 	if (!altered_table->found_next_number_field) {
 		/* There is no AUTO_INCREMENT column in the table
 		after the ALTER operation. */
-		max_autoinc = 0;
 	} else if (ctx->add_autoinc != ULINT_UNDEFINED) {
+		ut_ad(ctx->need_rebuild());
 		/* An AUTO_INCREMENT column was added. Get the last
 		value from the sequence, which may be based on a
 		supplied AUTO_INCREMENT value. */
-		max_autoinc = ctx->sequence.last();
+		ib_uint64_t autoinc = ctx->sequence.last();
+		ctx->new_table->autoinc = autoinc;
+		/* Bulk index creation does not update
+		PAGE_ROOT_AUTO_INC, so we must persist the "last used"
+		value here. */
+		btr_write_autoinc(dict_table_get_first_index(ctx->new_table),
+				  autoinc - 1, true);
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
-		/* An AUTO_INCREMENT value was supplied, but the table was not
-		rebuilt. Get the user-supplied value or the last value from the
-		sequence. */
-		ib_uint64_t	max_value_table;
-		dberr_t		err;
+		/* An AUTO_INCREMENT value was supplied by the user.
+		It must be persisted to the data file. */
+		const Field*	ai	= old_table->found_next_number_field;
+		ut_ad(!strcmp(dict_table_get_col_name(ctx->old_table,
+						      innodb_col_no(ai)),
+			      ai->field_name));
 
-		Field*	autoinc_field =
-			old_table->found_next_number_field;
-
-		dict_index_t*	index = dict_table_get_index_on_first_col(
-			ctx->old_table, autoinc_field->field_index,
-			autoinc_field->field_name);
-
-		max_autoinc = ha_alter_info->create_info->auto_increment_value;
-
-		dict_table_autoinc_lock(ctx->old_table);
-
-		err = row_search_max_autoinc(
-			index, autoinc_field->field_name, &max_value_table);
-
-		if (err != DB_SUCCESS) {
-			ut_ad(0);
-			max_autoinc = 0;
-		} else if (max_autoinc <= max_value_table) {
-			ulonglong	col_max_value;
-			ulonglong	offset;
-
-			col_max_value = innobase_get_int_col_max_value(autoinc_field);
-
-			offset = ctx->prebuilt->autoinc_offset;
-			max_autoinc = innobase_next_autoinc(
-				max_value_table, 1, 1, offset,
-				col_max_value);
+		ib_uint64_t	autoinc
+			= ha_alter_info->create_info->auto_increment_value;
+		if (autoinc == 0) {
+			autoinc = 1;
 		}
-		dict_table_autoinc_unlock(ctx->old_table);
-	} else {
-		/* An AUTO_INCREMENT value was not specified.
-		Read the old counter value from the table. */
-		ut_ad(old_table->found_next_number_field);
-		dict_table_autoinc_lock(ctx->old_table);
-		max_autoinc = ctx->old_table->autoinc;
-		dict_table_autoinc_unlock(ctx->old_table);
+
+		if (autoinc >= ctx->old_table->autoinc) {
+			/* Persist the predecessor of the
+			AUTO_INCREMENT value as the last used one. */
+			ctx->new_table->autoinc = autoinc--;
+		} else {
+			/* Mimic ALGORITHM=COPY in the following scenario:
+
+			CREATE TABLE t (a SERIAL);
+			INSERT INTO t SET a=100;
+			ALTER TABLE t AUTO_INCREMENT = 1;
+			INSERT INTO t SET a=NULL;
+			SELECT * FROM t;
+
+			By default, ALGORITHM=INPLACE would reset the
+			sequence to 1, while after ALGORITHM=COPY, the
+			last INSERT would use a value larger than 100.
+
+			We could only search the tree to know current
+			max counter in the table and compare. */
+			const dict_col_t*	autoinc_col
+				= dict_table_get_nth_col(ctx->old_table,
+							 innodb_col_no(ai));
+			dict_index_t*		index
+				= dict_table_get_first_index(ctx->old_table);
+			while (index != NULL
+			       && index->fields[0].col != autoinc_col) {
+				index = dict_table_get_next_index(index);
+			}
+
+			ut_ad(index);
+
+			ib_uint64_t	max_in_table = index
+				? row_search_max_autoinc(index)
+				: 0;
+
+			if (autoinc <= max_in_table) {
+				ctx->new_table->autoinc = innobase_next_autoinc(
+					max_in_table, 1,
+					ctx->prebuilt->autoinc_increment,
+					ctx->prebuilt->autoinc_offset,
+					innobase_get_int_col_max_value(ai));
+				/* Persist the maximum value as the
+				last used one. */
+				autoinc = max_in_table;
+			} else {
+				/* Persist the predecessor of the
+				AUTO_INCREMENT value as the last used one. */
+				ctx->new_table->autoinc = autoinc--;
+			}
+		}
+
+		btr_write_autoinc(dict_table_get_first_index(ctx->new_table),
+				  autoinc, true);
+	} else if (ctx->need_rebuild()) {
+		/* No AUTO_INCREMENT value was specified.
+		Copy it from the old table. */
+		ctx->new_table->autoinc = ctx->old_table->autoinc;
+		/* The persistent value was already copied in
+		prepare_inplace_alter_table_dict() when ctx->new_table
+		was created. If this was a LOCK=NONE operation, the
+		AUTO_INCREMENT values would be updated during
+		row_log_table_apply(). If this was LOCK!=NONE,
+		the table contents could not possibly have changed
+		between prepare_inplace and commit_inplace. */
 	}
 
-	DBUG_RETURN(max_autoinc);
+	DBUG_VOID_RETURN;
 }
 
 /** Add or drop foreign key constraints to the data dictionary tables,
@@ -8557,8 +8526,7 @@ ha_innobase::commit_inplace_alter_table(
 
 		DBUG_ASSERT(new_clustered == ctx->need_rebuild());
 
-		ctx->max_autoinc = commit_get_autoinc(
-			ha_alter_info, ctx, altered_table, table);
+		commit_set_autoinc(ha_alter_info, ctx, altered_table, table);
 
 		if (ctx->need_rebuild()) {
 			ctx->tmp_name = dict_mem_create_temporary_tablename(
@@ -8896,14 +8864,6 @@ foreign_fail:
 			(*pctx);
 		DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
 
-		if (altered_table->found_next_number_field) {
-			dict_table_t* t = ctx->new_table;
-
-			dict_table_autoinc_lock(t);
-			dict_table_autoinc_initialize(t, ctx->max_autoinc);
-			dict_table_autoinc_unlock(t);
-		}
-
 		bool	add_fts	= false;
 
 		/* Publish the created fulltext index, if any.
@@ -9051,10 +9011,6 @@ foreign_fail:
 					  crash_inject_count++);
 		}
 	}
-
-	/* We don't support compression for the system tablespace nor
-	the temporary tablespace. Only because they are shared tablespaces.
-	There is no other technical reason. */
 
 	innobase_parse_hint_from_comment(
 		m_user_thd, m_prebuilt->table, altered_table->s);

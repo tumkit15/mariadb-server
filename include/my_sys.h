@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2013, Monty Program Ab.
+   Copyright (c) 2010, 2016, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,6 +192,14 @@ extern void my_large_free(uchar *ptr);
 #define my_large_free(A) my_free_lock((A))
 #endif /* HAVE_LARGE_PAGES */
 
+void my_init_atomic_write(void);
+#ifdef __linux__
+my_bool my_test_if_atomic_write(File handle, int pagesize);
+#else
+#define my_test_if_atomic_write(A, B) 0
+#endif /* __linux__ */
+extern my_bool my_may_have_atomic_write;
+
 #if defined(HAVE_ALLOCA) && !defined(HAVE_valgrind)
 #if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
@@ -279,7 +287,7 @@ extern my_bool my_use_symdir;
 extern ulong	my_default_record_cache_size;
 extern my_bool  my_disable_locking, my_disable_async_io,
                 my_disable_flush_key_blocks, my_disable_symlinks;
-extern my_bool my_disable_sync;
+extern my_bool my_disable_sync, my_disable_copystat_in_redel;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern my_bool timed_mutexes;

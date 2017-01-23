@@ -1,5 +1,5 @@
 /* Copyright (c) 2002, 2015, Oracle and/or its affiliates.
-   Copyright (c) 2012, 2016, MariaDB Corporation
+   Copyright (c) 2012, 2017, MariaDB Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -449,16 +449,17 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   /*
     MariaDB Galera does not support STATEMENT or MIXED binlog format currently.
   */
-  if (WSREP(thd) && var->save_result.ulonglong_value != BINLOG_FORMAT_ROW)
+  if ((WSREP(thd) || opt_support_flashback) &&
+      var->save_result.ulonglong_value != BINLOG_FORMAT_ROW)
   {
     // Push a warning to the error log.
     push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-                        "MariaDB Galera does not support binlog format: %s",
+                        "MariaDB Galera and flashback do not support binlog format: %s",
                         binlog_format_names[var->save_result.ulonglong_value]);
 
     if (var->type == OPT_GLOBAL)
     {
-      WSREP_ERROR("MariaDB Galera does not support binlog format: %s",
+      WSREP_ERROR("MariaDB Galera and flashback do not support binlog format: %s",
                   binlog_format_names[var->save_result.ulonglong_value]);
       return true;
     }
@@ -3236,7 +3237,7 @@ static bool fix_table_open_cache(sys_var *, THD *, enum_var_type)
 static Sys_var_ulong Sys_table_cache_size(
        "table_open_cache", "The number of cached open tables",
        GLOBAL_VAR(tc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
+       VALID_RANGE(1, 1024*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_table_open_cache));
 
@@ -5042,8 +5043,9 @@ static Sys_var_mybool Sys_wsrep_restart_slave(
        GLOBAL_VAR(wsrep_restart_slave), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_wsrep_dirty_reads(
-       "wsrep_dirty_reads", "Do not reject SELECT queries even when the node "
-       "is not ready.", SESSION_ONLY(wsrep_dirty_reads), NO_CMD_LINE,
+       "wsrep_dirty_reads",
+       "Allow reads even when the node is not in the primary component.",
+       SESSION_VAR(wsrep_dirty_reads), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_uint Sys_wsrep_gtid_domain_id(
@@ -5466,6 +5468,13 @@ static Sys_var_ulong Sys_log_tc_size(
        DEFAULT(my_getpagesize() * 6),
        BLOCK_SIZE(my_getpagesize()));
 #endif
+
+static Sys_var_ulonglong Sys_max_thread_mem(
+       "max_session_mem_used", "Amount of memory a single user session "
+       "is allowed to allocate. This limits the value of the "
+       "session variable MEM_USED", SESSION_VAR(max_mem_used),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(8192,  ULONGLONG_MAX),
+       DEFAULT(LONGLONG_MAX), BLOCK_SIZE(1));
 
 #ifndef EMBEDDED_LIBRARY
 

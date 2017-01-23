@@ -355,7 +355,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NULL         MYSQL_TYPE_TIMESTAMP
     MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_LONGLONG     MYSQL_TYPE_INT24
-    MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_LONG,
+    MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_DATE         MYSQL_TYPE_TIME
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_DATETIME     MYSQL_TYPE_YEAR
@@ -10863,4 +10863,15 @@ bool Field::save_in_field_ignore_value(bool view_error_processing)
       com == SQLCOM_LOAD)
     return save_in_field_default_value(view_error_processing);
   return 0; // ignore
+}
+
+
+void Field::register_field_in_read_map()
+{
+  if (vcol_info)
+  {
+    Item *vcol_item= vcol_info->expr;
+    vcol_item->walk(&Item::register_field_in_read_map, 1, 0);
+  }
+  bitmap_set_bit(table->read_set, field_index);
 }
