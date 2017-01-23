@@ -72,7 +72,7 @@ addons:
 # resubmit after https://github.com/travis-ci/apt-package-whitelist/issues/2449 is closed
 
 script:
-  - export MYSQL_BUILD_CC=/usr/bin/${COMPILER} MYSQL_COMPILER_LAUNCHER=ccache
+  - export MYSQL_BUILD_CC=/usr/bin/${COMPILER}
   - case $COMPILER in gcc*) export MYSQL_BUILD_CXX=/usr/bin/${COMPILER/cc/++} ;; clang*) export MYSQL_BUILD_CXX=/usr/bin/${COMPILER/-/++-} ;; esac
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
   - cd "${TRAVIS_BUILD_DIR}"
