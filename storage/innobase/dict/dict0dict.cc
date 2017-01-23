@@ -1696,25 +1696,17 @@ dict_table_rename_in_cache(
 
 			ib::info() << "Delete of " << filepath << " failed.";
 		}
-
 		ut_free(filepath);
 
 	} else if (dict_table_is_file_per_table(table)) {
-		if (table->dir_path_of_temp_table != NULL) {
-			ib::error() << "Trying to rename a TEMPORARY TABLE "
-				<< old_name
-				<< " ( " << table->dir_path_of_temp_table
-				<< " )";
-			return(DB_ERROR);
-		}
-
 		char*	new_path = NULL;
 		char*	old_path = fil_space_get_first_path(table->space);
+
+		ut_ad(!dict_table_is_temporary(table));
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
-
 			err = RemoteDatafile::create_link_file(
 				new_name, new_path);
 
@@ -7242,71 +7234,6 @@ dict_index_zip_pad_optimal_page_size(
 	min_sz = (UNIV_PAGE_SIZE * (100 - zip_pad_max)) / 100;
 
 	return(ut_max(sz, min_sz));
-}
-
-/** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
-Fsp Flags are written into the tablespace header at the offset
-FSP_SPACE_FLAGS and are also stored in the fil_space_t::flags field.
-The following chart shows the translation of the low order bit.
-Other bits are the same.
-			Low order bit
-		    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
-dict_table_t::flags |     0     |    1    |     1      |    1
-fil_space_t::flags  |     0     |    0    |     1      |    1
-@param[in]	table_flags	dict_table_t::flags
-@param[in]	is_temp		whether the tablespace is temporary
-@param[in]	is_encrypted	whether the tablespace is encrypted
-@return tablespace flags (fil_space_t::flags) */
-ulint
-dict_tf_to_fsp_flags(
-	ulint	table_flags,
-	bool	is_temp,
-	bool	is_encrypted)
-{
-	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
-			return(ULINT_UNDEFINED););
-
-	bool		has_atomic_blobs =
-				 DICT_TF_HAS_ATOMIC_BLOBS(table_flags);
-	page_size_t	page_size = dict_tf_get_page_size(table_flags);
-	bool		has_data_dir = DICT_TF_HAS_DATA_DIR(table_flags);
-	bool		is_shared = DICT_TF_HAS_SHARED_SPACE(table_flags);
-	bool		page_compression = DICT_TF_GET_PAGE_COMPRESSION(table_flags);
-	ulint		page_compression_level = DICT_TF_GET_PAGE_COMPRESSION_LEVEL(table_flags);
-
-	ut_ad(!page_size.is_compressed() || has_atomic_blobs);
-
-	/* General tablespaces that are not compressed do not get the
-	flags for dynamic row format (POST_ANTELOPE & ATOMIC_BLOBS) */
-	if (is_shared && !page_size.is_compressed()) {
-		has_atomic_blobs = false;
-	}
-
-	ulint		fsp_flags = fsp_flags_init(page_size,
-						   has_atomic_blobs,
-						   has_data_dir,
-						   is_shared,
-						   is_temp,
-						   0,
-						   0,
-						   0,
-						   is_encrypted);
-
-	/* In addition, tablespace flags also contain if the page
-	compression is used for this table. */
-	if (page_compression) {
-		fsp_flags |= FSP_FLAGS_SET_PAGE_COMPRESSION(fsp_flags, page_compression);
-	}
-
-	/* In addition, tablespace flags also contain page compression level
-	if page compression is used for this table. */
-	if (page_compression && page_compression_level) {
-		fsp_flags |= FSP_FLAGS_SET_PAGE_COMPRESSION_LEVEL(fsp_flags, page_compression_level);
-	}
-
-	ut_ad(fsp_flags_is_valid(fsp_flags));
-
-	return(fsp_flags);
 }
 
 /*************************************************************//**
