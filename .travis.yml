@@ -108,7 +108,7 @@ script:
 # mroonga just generates too many warnings with clang and travis stops the job
 # tokubd has fatal warnings
   - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then
-      rm -rf "${TRAVIS_BUILD_DIR}"/storage/{mroonga,tokudb};
+      rm -rf "${TRAVIS_BUILD_DIR}"/storage/mroonga;
     fi   
   - source .travis.compiler.sh
   - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
