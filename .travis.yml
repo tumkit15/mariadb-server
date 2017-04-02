@@ -19,8 +19,12 @@ env:
     - GCC_VERSION=4.8
     - GCC_VERSION=5
     - GCC_VERSION=6
+    - GCC_VERSION=7
 
-#matrix:
+matrix:
+   exclude:
+     - env: GCC_VERSION=7
+       compiler: clang
 #  include:
 #    - env:
 #        - GCC_VERSION=6
@@ -65,6 +69,8 @@ addons:
       - g++-5
       - gcc-6
       - g++-6
+      - gcc-7
+      - g++-7
       - clang-3.8
       - llvm-3.8-dev
       - clang-3.9
