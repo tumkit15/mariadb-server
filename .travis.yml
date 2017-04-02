@@ -43,7 +43,8 @@ matrix:
                  -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
         - make -j 4
         - cd mysql-test
-        - ./mtr --force --mem --parallel=4 --skip-rpl --suite=main --skip-test-list=unstable-tests
+        - export MTR_MEM=/tmp
+        - ./mtr --force --mem --parallel=4 --skip-rpl --suite=main,innodb --skip-test-list=unstable-tests
         - ccache --show-stats
 #    - env:
 #        - GCC_VERSION=6
