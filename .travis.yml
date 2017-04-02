@@ -13,9 +13,11 @@ language: cpp
 #compiler:
 #  - gcc
 #  - clang
-#cache:
-#  - apt
-#  - ccache
+cache:
+  apt: true
+  ccache: true
+  directories:
+    - /usr/local
 #
 #env:
 #  matrix:
@@ -31,10 +33,11 @@ matrix:
         - brew install homebrew/boneyard/judy gnutls lz4 lzo xz snappy ccache
         - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
       script:
+        - PATH=$PATH:/usr/local/opt/ccache/libexec
         - which ccache
         - cmake .
-                 -DCMAKE_C_COMPILER=ccache
-                 -DCMAKE_CXX_COMPILER=ccache
+                 -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/opt/ccache/libexec/ccache
+                 -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/opt/ccache/libexec/ccache
                  -DCMAKE_BUILD_TYPE=Debug
                  -DWITH_SSL=system -DWITH_ZLIB=system
                  -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
