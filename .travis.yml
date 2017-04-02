@@ -25,14 +25,16 @@ matrix:
     - os: osx
       before_install:
         - brew update
-        - brew install boost homebrew/boneyard/judy
+        - brew install homebrew/boneyard/judy
         - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
       script:
-        - cmake . \
+        - mkdir build
+        - cd build
+        - cmake .. \
                  -DCMAKE_BUILD_TYPE=Debug \
                  -DWITH_SSL=system -DWITH_ZLIB=system \
                  -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
-        -  ./mtr --force --mem --parallel=4 --skip-rpl --suite=main --skip-test-list=unstable-tests
+        -  mysql-test/mtr --force --mem --parallel=4 --skip-rpl --suite=main --skip-test-list=unstable-tests
 #    - env:
 #        - GCC_VERSION=6
 #      addon:
