@@ -35,10 +35,12 @@ matrix:
       script:
         - PATH=$PATH:/usr/local/opt/ccache/libexec
         - which ccache
+        - ccache --version
+        - find /usr/local/opt/ccache/libexec  /usr/local/Cellar/ccache -ls
         - cmake .
                  -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
-                 -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/opt/ccache/libexec/ccache
-                 -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/opt/ccache/libexec/ccache
+                 -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/bin/ccache
+                 -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/bin/ccache
                  -DCMAKE_BUILD_TYPE=Debug
                  -DWITH_SSL=system -DWITH_ZLIB=system
                  -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
