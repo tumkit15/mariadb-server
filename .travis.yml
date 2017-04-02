@@ -32,7 +32,6 @@ matrix:
         - brew update
         - brew install homebrew/boneyard/judy gnutls lz4 lzo xz snappy ccache
         - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
-        - mount
       script:
         - ccache --version
         - cmake .
@@ -44,8 +43,7 @@ matrix:
                  -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
         - make -j 4
         - cd mysql-test
-        - export MTR_MEM=/tmp
-        - ./mtr --force --mem --parallel=4 --skip-rpl --suite=main,innodb --skip-test-list=unstable-tests
+        - ./mtr --force --parallel=4 --skip-rpl --suite=main,innodb --skip-test-list=unstable-tests
         - ccache --show-stats
 #    - env:
 #        - GCC_VERSION=6
