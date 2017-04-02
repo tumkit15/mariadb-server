@@ -20,8 +20,19 @@ env:
     - GCC_VERSION=5
     - GCC_VERSION=6
 
-#matrix:
-#  include:
+matrix:
+  include:
+    - os: osx
+      before_install:
+        - brew update
+        - brew install boost homebrew/boneyard/judy
+        - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
+      script:
+        - cmake . \
+                 -DCMAKE_BUILD_TYPE=Debug \
+                 -DWITH_SSL=system -DWITH_ZLIB=system \
+                 -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
+        -  ./mtr --force --mem --parallel=4 --skip-rpl --suite=main --skip-test-list=unstable-tests
 #    - env:
 #        - GCC_VERSION=6
 #      addon:
