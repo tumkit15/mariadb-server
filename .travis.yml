@@ -28,9 +28,7 @@ matrix:
         - brew install homebrew/boneyard/judy
         - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
       script:
-        - mkdir build
-        - cd build
-        - cmake .. \
+        - cmake . \
                  -DCMAKE_BUILD_TYPE=Debug \
                  -DWITH_SSL=system -DWITH_ZLIB=system \
                  -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
