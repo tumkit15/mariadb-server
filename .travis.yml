@@ -25,7 +25,7 @@ matrix:
     - os: osx
       before_install:
         - brew update
-        - brew install homebrew/boneyard/judy openssl gnutls lz4 lzo xz snappy pcre ccache
+        - brew install homebrew/boneyard/judy gnutls lz4 lzo xz snappy ccache
         - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
       script:
         - which ccache
