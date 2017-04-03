@@ -23,10 +23,15 @@ elif [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then
          MYSQL_TEST_SUITES=wsrep ;;
   esac
 else
-  CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/bin/ccache -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/bin/ccache -DCMAKE_BUILD_TYPE=Debug"
   # osx_image based tests
+  CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/bin/ccache -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/bin/ccache"
   env
-  MYSQL_TEST_SUITES=main,innodb
+  case ${GCC_VERSION} in
+    4.8) MYSQL_TEST_SUITES=rpl ;;
+    5)   MYSQL_TEST_SUITES=main,archive ; CMAKE_OPT="${CMAKE_OPT} -DCMAKE_BUILD_TYPE=Debug" ;;
+    6)   MYSQL_TEST_SUITES=main,innodb ;;
+    *)   MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
+  esac
 fi
 
 # main.mysqlhotcopy_myisam consitently failed in travis containers
