@@ -12,13 +12,10 @@ os:
   - linux
   - osx
 osx_image:
-  matrix:
-    - xcode7.3
-    - xcode8.3
+  - xcode8.3
 compiler:
-  matrix:
-    - gcc
-    - clang
+  - gcc
+  - clang
 
 cache:
   apt: true
