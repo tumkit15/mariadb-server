@@ -2,6 +2,7 @@
 set -x -v
 if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then
   CMAKE_OPT="-DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON";
+  CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
   case ${GCC_VERSION} in
     4.8) CXX=clang++-3.8; MYSQL_TEST_SUITES=main,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts ;;
     5) CXX=clang++-3.9; MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption ;;
@@ -24,7 +25,8 @@ elif [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then
   esac
 else
   # osx_image based tests
-  CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/bin/ccache -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/bin/ccache"
+  CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
+  CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
   env
   case ${GCC_VERSION} in
     4.8) MYSQL_TEST_SUITES=rpl ;;
