@@ -11,12 +11,14 @@ language: cpp
 os:
   - linux
   - osx
-compiler:
-  - gcc
-  - clang
 osx_image:
-  - xcode7.3
-  - xcode8.3
+  matrix:
+    - xcode7.3
+    - xcode8.3
+compiler:
+  matrix:
+    - gcc
+    - clang
 
 cache:
   apt: true
@@ -30,6 +32,10 @@ env:
     - GCC_VERSION=5
     - GCC_VERSION=6
 
+matrix:
+  exclude:
+    - os: osx
+      compiler: clang
 
 #    - env:
 #        - GCC_VERSION=6
