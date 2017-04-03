@@ -143,6 +143,7 @@ script:
          --skip-test-list=unstable-tests
          --skip-test=main.mysqlhotcopy_myisam
          --skip-test=archive.mysqlhotcopy_archive
+         --skip-test=binlog.binlog_unsafe
   - ccache --show-stats
 
 notifications:
