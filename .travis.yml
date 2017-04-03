@@ -10,9 +10,13 @@ git:
 language: cpp
 os:
   - linux
+  - osx
 compiler:
   - gcc
   - clang
+osx_image:
+  - xcode7.3
+  - xcode8.3
 
 cache:
   apt: true
@@ -26,39 +30,6 @@ env:
     - GCC_VERSION=5
     - GCC_VERSION=6
 
-matrix:
-  allowed_failures:
-    - os: osx
-      env:
-        - GCC_VERSION=4.8
-        - GCC_VERSION=5
-        - GCC_VERSION=6
-      compiler:
-        - gcc
-        - clang
-  include:
-    - os: osx
-      before_install:
-        - brew update
-        - brew install homebrew/boneyard/judy gnutls lz4 lzo xz snappy ccache
-        # Below fixed by: https://github.com/MariaDB/server/pull/347
-        - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
-      script:
-        - ccache --version
-        - cmake .
-                 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
-                 -DCMAKE_C_COMPILER_LAUNCHER=/usr/local/bin/ccache
-                 -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/local/bin/ccache
-                 -DCMAKE_BUILD_TYPE=Debug
-                 -DWITH_SSL=system -DWITH_ZLIB=system
-                 -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
-        - make -j 4
-        - cd mysql-test
-        - ./mtr --force --parallel=4 --testcase-timeout=2
-               --suite=main,innodb
-               --skip-rpl
-               --skip-test-list=unstable-tests
-        - ccache --show-stats
 
 #    - env:
 #        - GCC_VERSION=6
@@ -142,19 +113,32 @@ addons:
 
 # libsystemd-daemon-dev # https://github.com/travis-ci/apt-package-whitelist/issues/3882
 
+before_install:
+  - if [[ "${TRAVIS_OS_NAME}" == 'osx' ]]; then
+      brew update;
+      brew install homebrew/boneyard/judy gnutls lz4 lzo xz snappy ccache;
+    fi
+  # Below fixed by: https://github.com/MariaDB/server/pull/347
+  - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
+
 script:
-# mroonga just generates too many warnings with clang and travis stops the job
-# tokudb has fatal warnings
-  - if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then
-      rm -rf "${TRAVIS_BUILD_DIR}"/storage/{mroonga,tokudb};
-    fi   
+  - ccache --version
+# Clang:
+#   mroonga just generates too many warnings with clang and travis stops the job
+#   tokudb has fatal warnings
+# MTR_MEM:
+#   https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable or executable
+#   in trusty containers. osx just doesn't have shm
+  - export MTR_MEM=/tmp ;
   - source .travis.compiler.sh
-  - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
-  - cd "${TRAVIS_BUILD_DIR}"
-# https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable or executable
-# in trusty containers
-  - export MTR_MEM=/tmp
-  - env DEB_BUILD_OPTIONS="parallel=3" debian/autobake-deb.sh;
+  - cmake .
+           ${CMAKE_OPT}
+           -DWITH_SSL=system -DWITH_ZLIB=system
+  - make -j 6
+  - cd mysql-test
+  - ./mtr --force --parallel=6 --testcase-timeout=2
+         --suite=${MYSQL_TEST_SUITES}
+         --skip-test-list=unstable-tests
   - ccache --show-stats
 
 notifications:
