@@ -142,6 +142,7 @@ script:
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
          --skip-test=main.mysqlhotcopy_myisam
+         --skip-test=archive.mysqlhotcopy_archive
   - ccache --show-stats
 
 notifications:
