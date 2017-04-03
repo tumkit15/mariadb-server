@@ -27,12 +27,12 @@ else
   # osx_image based tests
   CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
   CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+  CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
   env
   case ${GCC_VERSION} in
-    4.8) MYSQL_TEST_SUITES=rpl ;;
+    4.8) MYSQL_TEST_SUITES=rpl,csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
     5)   MYSQL_TEST_SUITES=main,archive ; CMAKE_OPT="${CMAKE_OPT} -DCMAKE_BUILD_TYPE=Debug" ;;
     6)   MYSQL_TEST_SUITES=main,innodb ;;
-    *)   MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
   esac
 fi
 
