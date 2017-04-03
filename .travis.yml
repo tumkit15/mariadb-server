@@ -141,6 +141,7 @@ script:
   - ./mtr --force --parallel=6 --testcase-timeout=2
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
+         --skip-test=main.mysqlhotcopy_myisam
   - ccache --show-stats
 
 notifications:
