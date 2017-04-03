@@ -19,7 +19,7 @@ elif [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then
     5)   MYSQL_TEST_SUITES=main,archive ; CMAKE_OPT="${CMAKE_OPT} -DCMAKE_BUILD_TYPE=Debug" ;;
     6)   wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
          ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
-         tar -xvf data.tar.gz ;
+         tar -xJvf data.tar.xz ;
          export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so ;
          MYSQL_TEST_SUITES=wsrep ;;
   esac
