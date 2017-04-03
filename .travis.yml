@@ -138,7 +138,7 @@ script:
            -DWITH_SSL=system -DWITH_ZLIB=system
   - make -j 6
   - cd mysql-test
-  - ./mtr --force --parallel=6 --testcase-timeout=2
+  - ./mtr --force --parallel=6 --testcase-timeout=5
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
          --skip-test=main.mysqlhotcopy_myisam
