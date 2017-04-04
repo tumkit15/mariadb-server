@@ -25,14 +25,46 @@ cache:
 env:
   matrix:
     - GCC_VERSION=4.8
+      MYSQL_TEST_SUITES=rpl
+      TYPE=Debug
     - GCC_VERSION=5
+      MYSQL_TEST_SUITES=main,archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
+      TYPE=Debug
     - GCC_VERSION=6
+      MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption
+      TYPE=Debug
+    - GCC_VERSION=6
+      MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
+      TYPE=Debug
+    - GCC_VERSION=4.8
+      MYSQL_TEST_SUITES=rpl
+      TYPE=RelWithDebInfo
+    - GCC_VERSION=5
+      MYSQL_TEST_SUITES=main,archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
+      TYPE=RelWithDebInfo
+    - GCC_VERSION=6
+      MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption
+      TYPE=RelWithDebInfo
+    - GCC_VERSION=6
+      MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
+      TYPE=RelWithDebInfo
 
 matrix:
   exclude:
     - os: osx
       compiler: clang
+  include:
+    - os: linux
+      compiler: gcc
+      script:
+        - ${CC} --version ; ${CXX} --version
+      # https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable or executable
+      # in trusty containers
+        - export MTR_MEM=/tmp
+        - env DEB_BUILD_OPTIONS="parallel=6" debian/autobake-deb.sh;
+        - ccache --show-stats
 
+# Matric include for coverity
 #    - env:
 #        - GCC_VERSION=6
 #      addon:
@@ -50,8 +82,7 @@ matrix:
 #        build_command_prepend:
 #          - source .travis.compiler.sh
 #          - ${MYSQL_BUILD_CC} --version ; ${MYSQL_BUILD_CXX} --version
-#          - cmake . {MYSQL_BUILD_CXX:+-DCMAKE_CXX_COMPILER=$${MYSQL_BUILD_CXX}
-#                    {MYSQL_BUILD_CC:+-DCMAKE_C_COMPILER=$${MYSQL_BUILD_CC}
+#          - cmake . 
 #                   -DCMAKE_BUILD_TYPE=Debug
 #                   -DWITH_SSL=system -DWITH_ZLIB=system
 #                   -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON
@@ -134,15 +165,15 @@ script:
   - export MTR_MEM=/tmp ;
   - source .travis.compiler.sh
   - cmake .
+           -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
            -DWITH_SSL=system -DWITH_ZLIB=system
   - make -j 6
   - cd mysql-test
+# Test timeout needs to be 10(minutes) or less due to travis out timeout
   - ./mtr --force --parallel=6 --testcase-timeout=5
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
-         --skip-test=main.mysqlhotcopy_myisam
-         --skip-test=archive.mysqlhotcopy_archive
          --skip-test=binlog.binlog_unsafe
   - ccache --show-stats
 
