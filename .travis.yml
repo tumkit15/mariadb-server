@@ -24,30 +24,15 @@ cache:
 
 env:
   matrix:
-    - GCC_VERSION=4.8
-      MYSQL_TEST_SUITES=rpl
-      TYPE=Debug
-    - GCC_VERSION=5
-      MYSQL_TEST_SUITES=main,archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
-      TYPE=Debug
-    - GCC_VERSION=6
-      MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption
-      TYPE=Debug
-    - GCC_VERSION=6
-      MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
-      TYPE=Debug
-    - GCC_VERSION=4.8
-      MYSQL_TEST_SUITES=rpl
-      TYPE=RelWithDebInfo
-    - GCC_VERSION=5
-      MYSQL_TEST_SUITES=main,archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
-      TYPE=RelWithDebInfo
-    - GCC_VERSION=6
-      MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption
-      TYPE=RelWithDebInfo
-    - GCC_VERSION=6
-      MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
-      TYPE=RelWithDebInfo
+    - GCC_VERSION=4.8 MYSQL_TEST_SUITES=rpl TYPE=Debug
+    - GCC_VERSION=5 TYPE=Debug MYSQL_TEST_SUITES=main,archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
+    - GCC_VERSION=6 TYPE=Debug MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption
+    - GCC_VERSION TYPE=Debug MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
+    - GCC_VERSION=4.8 TYPE=RelWithDebInfo
+    - GCC_VERSION=5 TYPE=RelWithDebInfo MYSQL_TEST_SUITES=main,archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
+    - GCC_VERSION=6 TYPE=RelWithDebInfo MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption
+    - GCC_VERSION=6 TYPE=RelWithDebInfo MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
+
 
 matrix:
   exclude:
