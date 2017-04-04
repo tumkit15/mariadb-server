@@ -6,7 +6,12 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'clang++' ]]; then
   case ${GCC_VERSION} in
     4.8) CXX=clang++-3.8; MYSQL_TEST_SUITES=main,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts ;;
     5) CXX=clang++-3.9; MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption ;;
-    6) CXX=clang++-4.0; MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
+    6) CXX=clang++-4.0;
+         wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
+         ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
+         tar -xJvf data.tar.xz ;
+         export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so ;
+         MYSQL_TEST_SUITES=wsrep,csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
 # missing default suites: archive,rpl,wsrep
   esac
   export CXX CC=${CXX/++/}
@@ -21,18 +26,18 @@ elif [[ "${TRAVIS_OS_NAME}" == 'linux' && "${CXX}" == 'g++' ]]; then
          ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
          tar -xJvf data.tar.xz ;
          export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so ;
-         MYSQL_TEST_SUITES=wsrep ;;
+         MYSQL_TEST_SUITES=wsrep,csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
   esac
 else
   # osx_image based tests
   CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
   CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
   CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
-  env
   case ${GCC_VERSION} in
-    4.8) MYSQL_TEST_SUITES=rpl,csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
-    5)   MYSQL_TEST_SUITES=main,archive ; CMAKE_OPT="${CMAKE_OPT} -DCMAKE_BUILD_TYPE=Debug" ;;
+    4.8) MYSQL_TEST_SUITES=rpl ;;
+    5)   MYSQL_TEST_SUITES=main,archive ; CMAKE_OPT="${CMAKE_OPT} -DCMAKE_BUILD_TYPE=Debug -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON" ;;
     6)   MYSQL_TEST_SUITES=main,innodb ;;
+    *)   MYSQL_TEST_SUITES=csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles ;;
   esac
 fi
 
