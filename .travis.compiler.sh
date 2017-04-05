@@ -1,8 +1,7 @@
 #!/bin/sh
-set -x -v
 if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   if [[ "${CXX}" == 'clang++' ]]; then
-    CMAKE_OPT="-DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON";
+    CMAKE_OPT="-DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
     CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
     case ${GCC_VERSION} in
       4.8) CXX=clang++-3.8 ;;
@@ -17,10 +16,10 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   fi
   if [[ ${GCC_VERSION} == 6 ]]; then
          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
-         ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
-         tar -xJvf data.tar.xz ;
-         export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so ;
-         MYSQL_TEST_SUITES="${MYSQL_TEST_SUITES},wsrep" ;;
+         ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb
+         tar -xJvf data.tar.xz
+         export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so
+         MYSQL_TEST_SUITES="${MYSQL_TEST_SUITES},wsrep"
   fi
 else
   # osx_image based tests
@@ -36,5 +35,3 @@ fi
 # https://travis-ci.org/grooverdan/mariadb-server/builds/217661580
 echo 'main.mysqlhotcopy_myisam : unstable in containers' >> ${TRAVIS_BUILD_DIR}/mysql-test/unstable-tests
 echo 'archive.mysqlhotcopy_archive : unstable in containers' >> ${TRAVIS_BUILD_DIR}/mysql-test/unstable-tests
-
-set +x +v

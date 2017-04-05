@@ -43,6 +43,8 @@ matrix:
       compiler: gcc
       script:
         - ${CC} --version ; ${CXX} --version
+      # Just for disabling hotcopy tests for now
+        - source .travis.compiler.sh
       # https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable or executable
       # in trusty containers
         - export MTR_MEM=/tmp
