@@ -20,7 +20,7 @@ cache:
   apt: true
   ccache: true
   directories:
-    - /usr/local
+    - /usr/local/Cellar
 
 env:
   matrix:
