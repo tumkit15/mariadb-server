@@ -5,7 +5,6 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     CMAKE_OPT="-DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
     CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
     case ${GCC_VERSION} in
-      4.8) CXX=clang++-3.8 ;;
       5) CXX=clang++-3.9 ;;
       6) CXX=clang++-4.0 ;;
     esac
