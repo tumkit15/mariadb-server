@@ -148,7 +148,6 @@ script:
 #   in trusty containers. osx just doesn't have shm
   - export MTR_MEM=/tmp ;
   - source .travis.compiler.sh
-  - export CXXFLAGS=-std=c++11
   - cmake .
            -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
