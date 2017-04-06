@@ -151,7 +151,7 @@ script:
   - cmake .
            -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
-           -DWITH_SSL=system -DWITH_ZLIB=system
+           -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC
   - make -j 6
   - cd mysql-test
 # Test timeout needs to be 10(minutes) or less due to travis out timeout
