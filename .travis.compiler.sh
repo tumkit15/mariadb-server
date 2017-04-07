@@ -3,6 +3,7 @@ set -v -x
 if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   if [[ "${CXX}" == 'clang++' ]]; then
     CMAKE_OPT="-DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
+     CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
     if which ccache ; then
       CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
     fi
@@ -22,10 +23,13 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
          tar -xJvf data.tar.xz
          export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so
          MYSQL_TEST_SUITES="${MYSQL_TEST_SUITES},wsrep"
+  elif [[ ${GCC_VERSION} != 5 ]]; then
+     CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
   fi
 else
   # osx_image based tests
   CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
+  CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
   if which ccache ; then
     CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
   fi
