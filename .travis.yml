@@ -134,6 +134,7 @@ before_install:
   - if [[ "${TRAVIS_OS_NAME}" == 'osx' ]]; then
       brew update;
       brew install gnutls lz4 lzo xz snappy ccache jemalloc curl ossp-uuid pcre;
+      brew link ccache;
     fi
   # Below fixed by: https://github.com/MariaDB/server/pull/347
   - sed -i -e 's:/usr/bin/::g' cmake/libutils.cmake
