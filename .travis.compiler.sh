@@ -3,7 +3,9 @@ set -v -x
 if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   if [[ "${CXX}" == 'clang++' ]]; then
     CMAKE_OPT="-DWITHOUT_TOKUDB_STORAGE_ENGINE=ON -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
-    CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    if which ccache ; then
+      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    fi
     case ${GCC_VERSION} in
       5) CXX=clang++-3.9 ;;
       6) CXX=clang++-4.0 ;;
@@ -24,7 +26,9 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
 else
   # osx_image based tests
   CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
-  CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+  if which ccache ; then
+    CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+  fi
   CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
   if [[ "${TYPE}" == "Debug" ]]; then
     CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON"
