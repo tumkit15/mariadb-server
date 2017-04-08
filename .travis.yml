@@ -97,6 +97,7 @@ addons:
       - llvm-3.9-dev
       - clang-4.0
       - llvm-4.0-dev
+      - libasan0
       - bison
       - chrpath
       - cmake
