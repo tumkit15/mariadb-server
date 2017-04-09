@@ -4643,8 +4643,10 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     {
       (void) put_error(&mysql);
       (void) fflush(stdout);
+       mysql_close(&mysql);
       return ignore_errors ? -1 : 1;		// Abort
     }
+    mysql_close(&mysql);
     return -1;					// Retryable
   }
 
