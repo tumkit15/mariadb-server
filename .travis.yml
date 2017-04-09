@@ -154,7 +154,7 @@ script:
   - make -j 6
   - cd mysql-test
 # Test timeout needs to be 10(minutes) or less due to travis out timeout
-  - ./mtr --force --max-test-fail=20 --parallel=6 --testcase-timeout=5
+  - ./mtr --force --max-test-fail=20 --parallel=6 --testcase-timeout=2
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
          --skip-test=binlog.binlog_unsafe
