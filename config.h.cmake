@@ -271,26 +271,10 @@
 #cmakedefine HAVE_valgrind 1
 
 /* Types we may use */
-#ifdef __APPLE__
-  /*
-    Special handling required for OSX to support universal binaries that 
-    mix 32 and 64 bit architectures.
-  */
-  #if(__LP64__)
-    #define SIZEOF_LONG 8
-  #else
-    #define SIZEOF_LONG 4
-  #endif
-  #define SIZEOF_VOIDP   SIZEOF_LONG
-  #define SIZEOF_CHARP   SIZEOF_LONG
-  #define SIZEOF_SIZE_T  SIZEOF_LONG
-#else
-/* No indentation, to fetch the lines from verification scripts */
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
 #cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
 #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
 #cmakedefine SIZEOF_SIZE_T @SIZEOF_CHARP@
-#endif
 
 #define HAVE_LONG 1
 #define HAVE_CHARP 1
