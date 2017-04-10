@@ -19,6 +19,7 @@
 # for root !
 
 @localstatedir@/mysqld.log
+@localstatedir@/*general.log
 @localstatedir@/*-slow.log {
         # create 600 mysql mysql
         notifempty
