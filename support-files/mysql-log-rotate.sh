@@ -18,7 +18,8 @@
 # ATTENTION: This /root/.my.cnf should be readable ONLY
 # for root !
 
-@localstatedir@/mysqld.log {
+@localstatedir@/mysqld.log
+@localstatedir@/*-slow.log {
         # create 600 mysql mysql
         notifempty
 	daily
