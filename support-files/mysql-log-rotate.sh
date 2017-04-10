@@ -33,10 +33,10 @@
 @localstatedir@/mysqld.log
 @localstatedir@/*general.log
 @localstatedir@/*-slow.log {
-        # create 600 mysql mysql
+        shared
         notifempty
-	daily
-        rotate 3
+	weekly
+        rotate 4
         missingok
         compress
     postrotate
