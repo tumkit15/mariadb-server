@@ -149,6 +149,7 @@ script:
            -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
            -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC -DAWS_SDK_EXTERNAL_PROJECT=ON
+           -DWITH_MYSQLD_LDFLAGS=-fsanitize=undefined
   - make -j 6
   - cd mysql-test
 # With ASAN --thread-stack=400K to account for overhead
