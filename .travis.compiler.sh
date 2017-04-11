@@ -16,7 +16,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
       mkdir -p "${HOME}/bin"
       CCACHE=`which ccache`
       for compiler in ${CXX} ${CC} ; do
-        ln -s "${CCACHE}" "${compiler}"
+        ln -s "${CCACHE}" "${HOME}/bin/${compiler}"
       done
       export PATH="${HOME}/bin:${PATH}"
     fi
@@ -28,7 +28,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     if [[ ${GCC_VERSION} != 4.8 ]]; then
       CFLAGS="${CFLAGS} -fsanitize=undefined"
     fi
-    if [[ ${GCC_VERSION} != 5 ]]; then
+    if [[ ${GCC_VERSION} == 5 ]]; then
       CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
     fi
     if [[ ${GCC_VERSION} == 6 ]]; then
