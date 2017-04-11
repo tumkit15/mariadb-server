@@ -150,7 +150,7 @@ script:
            -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
            -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC -DAWS_SDK_EXTERNAL_PROJECT=ON
-  - make -j 6
+  - make -j 4
 # http://clang.llvm.org/docs/AddressSanitizer.html#symbolizing-the-reports
   - if [[ "${TRAVIS_OS_NAME}" == 'osx' ]]; then
       for prog in sql/mysqld client/mysqltest client/mysqlclient ; do
