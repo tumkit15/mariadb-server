@@ -20,7 +20,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
       done
       export PATH="${HOME}/bin:${PATH}"
     fi
-    CFLAGS="${CFLAGS} -fsanitize=undefined -fsanitize=integer"
+    CFLAGS="${CFLAGS} -fsanitize=undefined -fno-sanitize=vptr -fsanitize=integer"
     # Requires clang-5.0? -fsanitize=nullability"
   elif [[ "${CXX}" == 'g++' ]]; then
     export CXX=g++-${GCC_VERSION}
