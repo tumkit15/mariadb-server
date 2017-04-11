@@ -28,8 +28,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     CMAKE_OPT=""
     if [[ ${GCC_VERSION} != 4.8 ]]; then
       CFLAGS="${CFLAGS} -fsanitize=undefined"
-    fi
-    if [[ ${GCC_VERSION} == 5 ]]; then
+    else
       CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
     fi
     if [[ ${GCC_VERSION} == 6 ]]; then
