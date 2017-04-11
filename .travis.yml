@@ -21,6 +21,7 @@ cache:
   ccache: true
   directories:
     - /usr/local/Cellar
+    - ${HOME/galera
 
 env:
   matrix:
@@ -149,8 +150,13 @@ script:
            -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
            -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC -DAWS_SDK_EXTERNAL_PROJECT=ON
-           -DWITH_MYSQLD_LDFLAGS=-fsanitize=undefined
   - make -j 6
+# http://clang.llvm.org/docs/AddressSanitizer.html#symbolizing-the-reports
+  - if [[ "${TRAVIS_OS_NAME}" == 'osx' ]]; then
+      for prog in sql/mysqld client/mysqltest client/mysqlclient ; do
+         dsymutil "${prog}" ;
+      done ;
+    fi
   - cd mysql-test
 # With ASAN --thread-stack=400K to account for overhead
 # Test timeout needs to be 10(minutes) or less due to travis out timeout
