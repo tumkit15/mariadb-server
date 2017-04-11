@@ -32,6 +32,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
       CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
     fi
     if [[ ${GCC_VERSION} == 6 ]]; then
+      CFLAGS="${CFLAGS} --param  max-gcse-memory 2220360768"
       if [[ ! -f "${HOME}"/galera/libgalera_smm.so ]]; then
         mkdir -p "${HOME}"/galera
         wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb
