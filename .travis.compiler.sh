@@ -52,9 +52,12 @@ else
     CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
   fi
   CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
-  if [[ "${TYPE}" == "Debug" ]]; then
+  # When using -fsanitize=undefined, clang++ must be used to link. 
+  # storage/tokudb/PerconaFT/xz/src/build_lzma/src/liblzma uses clang
+  # Until this is fixed - build without Tokudb
+  #if [[ "${TYPE}" == "Debug" ]]; then
     CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON"
-  fi
+  #fi
 fi
 
 # main.mysqlhotcopy_myisam consitently failed in travis containers
