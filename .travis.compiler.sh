@@ -34,9 +34,7 @@ else
     CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
   fi
   CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_MROONGA_STORAGE_ENGINE=ON"
-  if [[ "${TYPE}" == "Debug" ]]; then
-    CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON"
-  fi
+  CMAKE_OPT="${CMAKE_OPT} -DWITHOUT_TOKUDB_STORAGE_ENGINE=ON"
 fi
 
 # main.mysqlhotcopy_myisam consitently failed in travis containers
