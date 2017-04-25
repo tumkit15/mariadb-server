@@ -614,6 +614,8 @@ struct log_t{
 					mtr_commit and still ensure that
 					insertions in the flush_list happen
 					in the LSN order. */
+	ut_new_pfx_t	mem_pfx;	/*!< Auxiliary structure, for perfomance
+					schema memory - buf_ptr */
 	byte*		buf_ptr;	/*!< unaligned log buffer, which should
 					be of double of buf_size */
 	byte*		buf;		/*!< log buffer currently in use;

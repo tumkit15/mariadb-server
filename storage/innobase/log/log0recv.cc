@@ -553,7 +553,7 @@ recv_sys_init()
 	}
 
 	recv_sys->buf = static_cast<byte*>(
-		ut_malloc_nokey(RECV_PARSING_BUF_SIZE));
+		ut_malloc_dontdump(RECV_PARSING_BUF_SIZE, &recv_sys->mem_pfx));
 
 	recv_sys->addr_hash = hash_create(size / 512);
 	recv_sys->progress_time = ut_time();
@@ -588,7 +588,7 @@ recv_sys_debug_free(void)
 
 	hash_table_free(recv_sys->addr_hash);
 	mem_heap_free(recv_sys->heap);
-	ut_free(recv_sys->buf);
+	ut_free_dodump(recv_sys->buf, &recv_sys->mem_pfx);
 
 	recv_sys->buf = NULL;
 	recv_sys->heap = NULL;

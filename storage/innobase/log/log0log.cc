@@ -228,12 +228,14 @@ log_buffer_extend(
 
 	/* reallocate log buffer */
 	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
-	ut_free(log_sys->buf_ptr);
+	ut_free_dodump(log_sys->buf_ptr, &log_sys->mem_pfx);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(log_sys->buf_size * 2 + OS_FILE_LOG_BLOCK_SIZE));
+		ut_malloc_dontdump(
+			log_sys->buf_size * 2 + OS_FILE_LOG_BLOCK_SIZE,
+			&log_sys->mem_pfx));
 	log_sys->buf = static_cast<byte*>(
 		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
@@ -724,7 +726,8 @@ log_sys_init()
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(log_sys->buf_size * 2 + OS_FILE_LOG_BLOCK_SIZE));
+		ut_malloc_dontdump(log_sys->buf_size * 2 + OS_FILE_LOG_BLOCK_SIZE,
+				   &log_sys->mem_pfx));
 	log_sys->buf = static_cast<byte*>(
 		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
@@ -2254,7 +2257,7 @@ log_shutdown()
 {
 	log_group_close_all();
 
-	ut_free(log_sys->buf_ptr);
+	ut_free_dodump(log_sys->buf_ptr, &log_sys->mem_pfx);
 	log_sys->buf_ptr = NULL;
 	log_sys->buf = NULL;
 	ut_free(log_sys->checkpoint_buf_ptr);
