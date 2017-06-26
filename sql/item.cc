@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2000, 2016, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2016, MariaDB
+   Copyright (c) 2010, 2017, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1263,6 +1263,7 @@ Item *Item::const_charset_converter(CHARSET_INFO *tocs,
   DBUG_ASSERT(fixed);
   StringBuffer<64>tmp;
   String *s= val_str(&tmp);
+
   if (!s)
     return new Item_null((char *) func_name, tocs);
 
@@ -5925,7 +5926,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
                               collation.collation);
       break;
     }
-    /* Fall through to make_string_field() */
+    /* Fall through */
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_VAR_STRING:

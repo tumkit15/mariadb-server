@@ -2,6 +2,7 @@
 
 Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2017, MariaDB Corporation.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1343,8 +1344,6 @@ buf_pool_init_instance(
 		buf_pool->chunks = chunk =
 			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
 
-		UT_LIST_INIT(buf_pool->free);
-
 		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size)) {
 			mem_free(chunk);
 			mem_free(buf_pool);
@@ -1366,7 +1365,7 @@ buf_pool_init_instance(
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
-		buf_pool->page_hash = ha_create(2 * buf_pool->curr_size,
+		buf_pool->page_hash = ib_create(2 * buf_pool->curr_size,
 						srv_n_page_hash_locks,
 						MEM_HEAP_FOR_PAGE_HASH,
 						SYNC_BUF_PAGE_HASH);
@@ -3025,18 +3024,12 @@ got_block:
 				goto loop;
 			}
 
-			fprintf(stderr,
-				"innodb_change_buffering_debug evict %u %u\n",
-				(unsigned) space, (unsigned) offset);
 			return(NULL);
 		}
 
 		mutex_enter(&fix_block->mutex);
 
 		if (buf_flush_page_try(buf_pool, fix_block)) {
-			fprintf(stderr,
-				"innodb_change_buffering_debug flush %u %u\n",
-				(unsigned) space, (unsigned) offset);
 			guess = fix_block;
 			goto loop;
 		}

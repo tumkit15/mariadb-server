@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2017, MariaDB Corporation.
@@ -112,6 +112,9 @@ UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
 /** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** UNDO tablespaces starts with space id. */
+ulint	srv_undo_space_id_start;
+
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -120,14 +123,17 @@ UNIV_INTERN ibool	srv_is_being_started = FALSE;
 /** TRUE if the server was successfully started */
 UNIV_INTERN ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
-static ibool		srv_start_has_been_called = FALSE;
+static ibool	srv_start_has_been_called;
+
+/** Whether any undo log records can be generated */
+UNIV_INTERN bool srv_undo_sources;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
-static os_file_t	files[1000];
+static pfs_os_file_t	files[1000];
 
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS];
@@ -570,7 +576,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
-	os_file_t*	file,	/*!< out: file handle */
+	pfs_os_file_t*	file,	/*!< out: file handle */
 	const char*	name)	/*!< in: log file name */
 {
 	ibool		ret;
@@ -786,7 +792,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
-	os_file_t*	file,	/*!< out: file handle */
+	pfs_os_file_t*	file,	/*!< out: file handle */
 	const char*	name,	/*!< in: log file name */
 	os_offset_t*	size)	/*!< out: file size */
 {
@@ -902,7 +908,7 @@ open_or_create_data_files(
 				   && os_file_get_last_error(false)
 				   != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-			    	   /* AIX 5.1 after security patch ML7 may have
+				   /* AIX 5.1 after security patch ML7 may have
 			           errno set to 0 here, which causes our
 				   function to return 100; work around that
 				   AIX problem */
@@ -1199,7 +1205,7 @@ srv_undo_tablespace_create(
 	const char*	name,		/*!< in: tablespace name */
 	ulint		size)		/*!< in: tablespace size in pages */
 {
-	os_file_t	fh;
+	pfs_os_file_t	fh;
 	ibool		ret;
 	dberr_t		err = DB_SUCCESS;
 
@@ -1276,7 +1282,7 @@ srv_undo_tablespace_open(
 	const char*	name,		/*!< in: tablespace name */
 	ulint		space)		/*!< in: tablespace id */
 {
-	os_file_t	fh;
+	pfs_os_file_t	fh;
 	dberr_t		err	= DB_ERROR;
 	ibool		ret;
 	ulint		flags;
@@ -1375,13 +1381,23 @@ srv_undo_tablespaces_init(
 
 	for (i = 0; create_new_db && i < n_conf_tablespaces; ++i) {
 		char	name[OS_FILE_MAX_PATH];
+		ulint	space_id  = i + 1;
+
+		DBUG_EXECUTE_IF("innodb_undo_upgrade",
+				space_id = i + 3;);
 
 		ut_snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
-			srv_undo_dir, SRV_PATH_SEPARATOR, i + 1);
+			srv_undo_dir, SRV_PATH_SEPARATOR, space_id);
 
-		/* Undo space ids start from 1. */
+		if (i == 0) {
+			srv_undo_space_id_start = space_id;
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
+
+		undo_tablespace_ids[i] = space_id;
+
 		err = srv_undo_tablespace_create(
 			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
@@ -1403,14 +1419,16 @@ srv_undo_tablespaces_init(
 	if (!create_new_db) {
 		n_undo_tablespaces = trx_rseg_get_n_undo_tablespaces(
 			undo_tablespace_ids);
+
+		if (n_undo_tablespaces != 0) {
+			srv_undo_space_id_start = undo_tablespace_ids[0];
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
+
 	} else {
 		n_undo_tablespaces = n_conf_tablespaces;
 
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
-			undo_tablespace_ids[i - 1] = i;
-		}
-
-		undo_tablespace_ids[i] = ULINT_UNDEFINED;
+		undo_tablespace_ids[n_conf_tablespaces] = ULINT_UNDEFINED;
 	}
 
 	/* Open all the undo tablespaces that are currently in use. If we
@@ -1433,8 +1451,6 @@ srv_undo_tablespaces_init(
 		/* The system space id should not be in this array. */
 		ut_a(undo_tablespace_ids[i] != 0);
 		ut_a(undo_tablespace_ids[i] != ULINT_UNDEFINED);
-
-		/* Undo space ids start from 1. */
 
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
@@ -1470,9 +1486,21 @@ srv_undo_tablespaces_init(
 			break;
 		}
 
+		/** Note the first undo tablespace id in case of
+		no active undo tablespace. */
+		if (n_undo_tablespaces == 0) {
+			srv_undo_space_id_start = i;
+		}
+
 		++n_undo_tablespaces;
 
 		++*n_opened;
+	}
+
+	/** Explictly specify the srv_undo_space_id_start
+	as zero when there are no undo tablespaces. */
+	if (n_undo_tablespaces == 0) {
+		srv_undo_space_id_start = 0;
 	}
 
 	/* If the user says that there are fewer than what we find we
@@ -1519,10 +1547,11 @@ srv_undo_tablespaces_init(
 		mtr_start(&mtr);
 
 		/* The undo log tablespace */
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
+		for (i = 0; i < n_undo_tablespaces; ++i) {
 
 			fsp_header_init(
-				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+				undo_tablespace_ids[i],
+				SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
 		}
 
 		mtr_commit(&mtr);
@@ -1597,8 +1626,7 @@ are not found and the user wants.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
-innobase_start_or_create_for_mysql(void)
-/*====================================*/
+innobase_start_or_create_for_mysql()
 {
 	ibool		create_new_db;
 	lsn_t		min_flushed_lsn;
@@ -1632,6 +1660,10 @@ innobase_start_or_create_for_mysql(void)
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
 	os_fast_mutex_free(&srv_os_test_mutex);
+
+	if (srv_force_recovery == SRV_FORCE_NO_LOG_REDO) {
+		srv_read_only_mode = 1;
+	}
 
 	high_level_read_only = srv_read_only_mode
 		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
@@ -2747,8 +2779,8 @@ files_checked:
 			}
 		}
 
-		srv_startup_is_before_trx_rollback_phase = FALSE;
 		recv_recovery_rollback_active();
+		srv_startup_is_before_trx_rollback_phase = FALSE;
 
 		/* It is possible that file_format tag has never
 		been set. In this case we initialize it to minimum
@@ -2875,6 +2907,16 @@ files_checked:
 			srv_master_thread,
 			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
 		thread_started[1 + SRV_MAX_N_IO_THREADS] = true;
+
+		srv_undo_sources = true;
+		/* Create the dict stats gathering thread */
+		srv_dict_stats_thread_active = true;
+		dict_stats_thread_handle = os_thread_create(
+			dict_stats_thread, NULL, NULL);
+		dict_stats_thread_started = true;
+
+		/* Create the thread that will optimize the FTS sub-system. */
+		fts_optimize_init();
 	}
 
 	if (!srv_read_only_mode
@@ -2904,12 +2946,16 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode) {
-		buf_flush_page_cleaner_thread_handle = os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
+		buf_page_cleaner_is_active = true;
+		buf_flush_page_cleaner_thread_handle = os_thread_create(
+			buf_flush_page_cleaner_thread, NULL, NULL);
 		buf_flush_page_cleaner_thread_started = true;
-	}
 
-	buf_flush_lru_manager_thread_handle = os_thread_create(buf_flush_lru_manager_thread, NULL, NULL);
-	buf_flush_lru_manager_thread_started = true;
+		buf_lru_manager_is_active = true;
+		buf_flush_lru_manager_thread_handle = os_thread_create(
+			buf_flush_lru_manager_thread, NULL, NULL);
+		buf_flush_lru_manager_thread_started = true;
+	}
 
 	if (!srv_file_per_table && srv_pass_corrupt_table) {
 		fprintf(stderr, "InnoDB: Warning:"
@@ -2943,13 +2989,6 @@ files_checked:
 		/* Create the buffer pool dump/load thread */
 		buf_dump_thread_handle = os_thread_create(buf_dump_thread, NULL, NULL);
 		buf_dump_thread_started = true;
-
-		/* Create the dict stats gathering thread */
-		dict_stats_thread_handle = os_thread_create(dict_stats_thread, NULL, NULL);
-		dict_stats_thread_started = true;
-
-		/* Create the thread that will optimize the FTS sub-system. */
-		fts_optimize_init();
 	}
 
 	srv_was_started = TRUE;
@@ -2987,13 +3026,10 @@ srv_fts_close(void)
 }
 #endif
 
-/****************************************************************//**
-Shuts down the InnoDB database.
-@return	DB_SUCCESS or error code */
+/** Shut down InnoDB. */
 UNIV_INTERN
-dberr_t
-innobase_shutdown_for_mysql(void)
-/*=============================*/
+void
+innodb_shutdown()
 {
 	ulint	i;
 
@@ -3003,15 +3039,20 @@ innobase_shutdown_for_mysql(void)
 				"Shutting down an improperly started, "
 				"or created database!");
 		}
-
-		return(DB_SUCCESS);
 	}
 
-	if (!srv_read_only_mode) {
+	if (srv_undo_sources) {
+		ut_ad(!srv_read_only_mode);
 		/* Shutdown the FTS optimize sub system. */
 		fts_optimize_start_shutdown();
 
 		fts_optimize_end();
+		dict_stats_shutdown();
+		while (row_get_background_drop_list_len_low()) {
+			srv_wake_master_thread();
+			os_thread_yield();
+		}
+		srv_undo_sources = false;
 	}
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to
@@ -3215,88 +3256,8 @@ innobase_shutdown_for_mysql(void)
 
 	srv_was_started = FALSE;
 	srv_start_has_been_called = FALSE;
-
-	return(DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
-
-
-/********************************************************************
-Signal all per-table background threads to shutdown, and wait for them to do
-so. */
-UNIV_INTERN
-void
-srv_shutdown_table_bg_threads(void)
-/*===============================*/
-{
-	dict_table_t*	table;
-	dict_table_t*	first;
-	dict_table_t*	last = NULL;
-
-	mutex_enter(&dict_sys->mutex);
-
-	/* Signal all threads that they should stop. */
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	first = table;
-	while (table) {
-		dict_table_t*	next;
-		fts_t*		fts = table->fts;
-
-		if (fts != NULL) {
-			fts_start_shutdown(table, fts);
-		}
-
-		next = UT_LIST_GET_NEXT(table_LRU, table);
-
-		if (!next) {
-			last = table;
-		}
-
-		table = next;
-	}
-
-	/* We must release dict_sys->mutex here; if we hold on to it in the
-	loop below, we will deadlock if any of the background threads try to
-	acquire it (for example, the FTS thread by calling que_eval_sql).
-
-	Releasing it here and going through dict_sys->table_LRU without
-	holding it is safe because:
-
-	 a) MySQL only starts the shutdown procedure after all client
-	 threads have been disconnected and no new ones are accepted, so no
-	 new tables are added or old ones dropped.
-
-	 b) Despite its name, the list is not LRU, and the order stays
-	 fixed.
-
-	To safeguard against the above assumptions ever changing, we store
-	the first and last items in the list above, and then check that
-	they've stayed the same below. */
-
-	mutex_exit(&dict_sys->mutex);
-
-	/* Wait for the threads of each table to stop. This is not inside
-	the above loop, because by signaling all the threads first we can
-	overlap their shutting down delays. */
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	ut_a(first == table);
-	while (table) {
-		dict_table_t*	next;
-		fts_t*		fts = table->fts;
-
-		if (fts != NULL) {
-			fts_shutdown(table, fts);
-		}
-
-		next = UT_LIST_GET_NEXT(table_LRU, table);
-
-		if (table == last) {
-			ut_a(!next);
-		}
-
-		table = next;
-	}
-}
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -1142,14 +1142,11 @@ innobase_drop_database(
 					the path is used as the database name:
 					for example, in 'mysql/data/test' the
 					database name is 'test' */
-/*******************************************************************//**
-Closes an InnoDB database. */
+/** Shut down the InnoDB storage engine.
+@return	0 */
 static
 int
-innobase_end(
-/*=========*/
-	handlerton*		hton,	/* in: Innodb handlerton */
-	ha_panic_function	type);
+innobase_end(handlerton*, ha_panic_function);
 
 /*****************************************************************//**
 Creates an InnoDB transaction struct for the thd if it does not yet have one.
@@ -1319,19 +1316,6 @@ thd_is_replication_slave_thread(
 	THD*	thd)	/*!< in: thread handle */
 {
 	return((ibool) thd_slave_thread(thd));
-}
-
-/******************************************************************//**
-Gets information on the durability property requested by thread.
-Used when writing either a prepare or commit record to the log
-buffer. @return the durability property. */
-UNIV_INTERN
-enum durability_properties
-thd_requested_durability(
-/*=====================*/
-	const THD* thd)	/*!< in: thread handle */
-{
-	return(thd_get_durability_property(thd));
 }
 
 /******************************************************************//**
@@ -1998,16 +1982,11 @@ innobase_get_stmt(
 	THD*	thd,		/*!< in: MySQL thread handle */
 	size_t*	length)		/*!< out: length of the SQL statement */
 {
-	const char* query = NULL;
-	LEX_STRING *stmt = NULL;
-	if (thd) {
-		stmt = thd_query_string(thd);
-		if (stmt) {
-			*length = stmt->length;
-			query = stmt->str;
-		}
+	if (const LEX_STRING *stmt = thd_query_string(thd)) {
+		*length = stmt->length;
+		return stmt->str;
 	}
-	return (query);
+	return NULL;
 }
 
 /**********************************************************************//**
@@ -3669,21 +3648,13 @@ error:
 	DBUG_RETURN(TRUE);
 }
 
-/*******************************************************************//**
-Closes an InnoDB database.
-@return	TRUE if error */
+/** Shut down the InnoDB storage engine.
+@return	0 */
 static
 int
-innobase_end(
-/*=========*/
-	handlerton*		hton,	/*!< in/out: InnoDB handlerton */
-	ha_panic_function	type MY_ATTRIBUTE((unused)))
-					/*!< in: ha_panic() parameter */
+innobase_end(handlerton*, ha_panic_function)
 {
-	int	err= 0;
-
 	DBUG_ENTER("innobase_end");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	if (innodb_inited) {
 
@@ -3700,9 +3671,7 @@ innobase_end(
 		innodb_inited = 0;
 		hash_table_free(innobase_open_tables);
 		innobase_open_tables = NULL;
-		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
-			err = 1;
-		}
+		innodb_shutdown();
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path);
 		mysql_mutex_destroy(&innobase_share_mutex);
@@ -3711,7 +3680,7 @@ innobase_end(
 		mysql_mutex_destroy(&pending_checkpoint_mutex);
 	}
 
-	DBUG_RETURN(err);
+	DBUG_RETURN(0);
 }
 
 /****************************************************************//**
@@ -7064,8 +7033,8 @@ ha_innobase::innobase_lock_autoinc(void)
 				break;
 			}
 		}
-		/* Fall through to old style locking. */
-
+		/* Use old style locking. */
+		/* fall through */
 	case AUTOINC_OLD_STYLE_LOCKING:
 		DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used",
 				ut_ad(0););
@@ -7524,8 +7493,8 @@ calc_row_difference(
 			}
 		}
 
-		if (o_len != n_len || (o_len != UNIV_SQL_NULL &&
-					0 != memcmp(o_ptr, n_ptr, o_len))) {
+		if (o_len != n_len || (o_len != 0 && o_len != UNIV_SQL_NULL
+				       && 0 != memcmp(o_ptr, n_ptr, o_len))) {
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
@@ -9726,7 +9695,8 @@ create_options_are_invalid(
 	case ROW_TYPE_DYNAMIC:
 		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_tablespace);
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
-		/* fall through since dynamic also shuns KBS */
+		/* ROW_FORMAT=DYNAMIC also shuns KEY_BLOCK_SIZE */
+		/* fall through */
 	case ROW_TYPE_COMPACT:
 	case ROW_TYPE_REDUNDANT:
 		if (kbs_specified) {
@@ -10112,7 +10082,8 @@ index_bad:
 			break;
 		}
 		zip_allowed = FALSE;
-		/* fall through to set row_format = COMPACT */
+		/* Set ROW_FORMAT = COMPACT */
+		/* fall through */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
@@ -10120,6 +10091,7 @@ index_bad:
 			thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
+		/* fall through */
 	case ROW_TYPE_DEFAULT:
 		/* If we fell through, set row format to Compact. */
 		row_format = ROW_TYPE_COMPACT;
@@ -10719,7 +10691,8 @@ ha_innobase::delete_table(
 	extension, in contrast to ::create */
 	normalize_table_name(norm_name, name);
 
-	if (srv_read_only_mode) {
+	if (srv_read_only_mode
+	    || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (row_is_magic_monitor_table(norm_name)
 		   && check_global_access(thd, PROCESS_ACL)) {
