@@ -156,7 +156,6 @@ script:
   - ./mtr --force --max-test-fail=20 --parallel=6 --testcase-timeout=2
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
-         --skip-test=binlog.binlog_unsafe
   - ccache --show-stats
 
 notifications:
