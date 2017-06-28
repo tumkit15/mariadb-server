@@ -22,7 +22,6 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
          ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb
          tar -xJvf data.tar.xz
          export WSREP_PROVIDER=$PWD/usr/lib/libgalera_smm.so
-         MYSQL_TEST_SUITES="${MYSQL_TEST_SUITES},wsrep"
   #elif [[ ${GCC_VERSION} != 5 ]]; then
     #CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
   fi
