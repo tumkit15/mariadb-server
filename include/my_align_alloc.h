@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _my_aligned_alloc_h
-#define _my_aligned_alloc_h
+#ifndef MY_ALIGN_ALLOC_INCLUDED
+#define MY_ALIGN_ALLOC_INCLUDED
 
 
 #if defined (_MSC_VER)
@@ -24,13 +24,13 @@
 #elif defined (_ISOC11_SOURCE)
 #define ALIGNED_ALLOC(S,A)  aligned_alloc((A), (S))
 #elif  _POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600
-inline void *XXaligned_alloc(size_t size, size_t align)
+inline void *posix_memaligned_alloc(size_t size, size_t align)
 {
   void *m;
   errno = posix_memalign(&m, align, size);
   return errno ? NULL : m;
 }
-#define ALIGNED_ALLOC(S,A)  XXaligned_alloc((S), (A))
+#define ALIGNED_ALLOC(S,A)  posix_memaligned_alloc((S), (A))
 
 #else
 #warning   "No aligned malloc - cache lines may be shared"
