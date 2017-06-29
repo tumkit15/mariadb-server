@@ -271,7 +271,7 @@
 #cmakedefine HAVE_valgrind 1
 
 /* detected cache size */
-#cmakedefine CPU_LEVEL1_DCACHE_LINESIZE 1
+#cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
 
 /* Types we may use */
 #ifdef __APPLE__
