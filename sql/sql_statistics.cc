@@ -1289,7 +1289,7 @@ public:
    : owner(stat_table_arg), rowid_buf(NULL),
      rowid_size(owner->stat_file->ref_length)
   {
-     my_b_clear(&io_cache);
+     bzero((char *) &io_cache, sizeof(io_cache));
   }
 
   /*
