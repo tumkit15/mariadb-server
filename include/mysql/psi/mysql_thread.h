@@ -56,6 +56,8 @@
 
 #include "mysql/psi/psi.h"
 
+#include "mutex_attributes.h"
+
 /**
   @defgroup Thread_instrumentation Thread Instrumentation
   @ingroup Instrumentation_interface
@@ -92,7 +94,7 @@ struct st_mysql_mutex
   @sa mysql_mutex_unlock
   @sa mysql_mutex_destroy
 */
-typedef struct st_mysql_mutex mysql_mutex_t;
+typedef struct st_mysql_mutex CAPABILITY("mutex") mysql_mutex_t;
 
 /**
   An instrumented rwlock structure.
@@ -648,7 +650,7 @@ static inline int inline_mysql_mutex_lock(
 #if defined(SAFE_MUTEX) || defined (HAVE_PSI_MUTEX_INTERFACE)
   , const char *src_file, uint src_line
 #endif
-  )
+  ) ACQUIRE_CFUNCTION(*that)
 {
   int result;
 
@@ -691,7 +693,7 @@ static inline int inline_mysql_mutex_trylock(
 #if defined(SAFE_MUTEX) || defined (HAVE_PSI_MUTEX_INTERFACE)
   , const char *src_file, uint src_line
 #endif
-  )
+  ) TRY_ACQUIRE_CFUNCTION(1, *that)
 {
   int result;
 
@@ -734,7 +736,7 @@ static inline int inline_mysql_mutex_unlock(
 #ifdef SAFE_MUTEX
   , const char *src_file, uint src_line
 #endif
-  )
+  ) RELEASE_CFUNCTION(*that)
 {
   int result;
 
