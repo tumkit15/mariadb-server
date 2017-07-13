@@ -358,6 +358,7 @@ void mi_update_status(void* param)
 */
 
 static void mi_update_status_with_lock(MI_INFO *info)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   my_bool locked= 0;
   if (info->state == &info->save_state)

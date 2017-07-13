@@ -81,6 +81,7 @@ MI_INFO *test_if_reopen(char *filename)
 ******************************************************************************/
 
 MI_INFO *mi_open(const char *name, int mode, uint open_flags)
+  NO_THREAD_SAFETY_ANALYSIS /* Conditional locking */
 {
   int lock_error,kfile,open_mode,save_errno,have_rtree=0, realpath_err;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,keys,
