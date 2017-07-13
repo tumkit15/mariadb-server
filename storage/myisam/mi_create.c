@@ -862,7 +862,8 @@ err_no_lock:
     }
   }
   my_free(rec_per_key_part);
-  DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */
+  my_errno=save_errno;
+  DBUG_RETURN(my_errno);		/* return the fatal errno */
 }
 
 
