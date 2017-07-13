@@ -504,6 +504,7 @@ static void wake_up_waiters(THR_LOCK *lock);
 static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
               my_bool in_wait_list, ulong lock_wait_timeout)
+  ACQUIRE_CFUNCTION(*data)
 {
   struct st_my_thread_var *thread_var= my_thread_var;
   mysql_cond_t *cond= &thread_var->suspend;
@@ -740,6 +741,7 @@ wsrep_break_lock(
 
 static enum enum_thr_lock_result
 thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner, ulong lock_wait_timeout)
+  TRY_ACQUIRE_CFUNCTION(THR_LOCK_SUCCESS, *data)
 {
   THR_LOCK *lock=data->lock;
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
@@ -1538,6 +1540,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
 
 void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
                               enum thr_lock_type new_lock_type)
+  REQUIRES(!in_data)
 {
   THR_LOCK *lock=in_data->lock;
 #ifndef DBUG_OFF
@@ -1557,9 +1560,12 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
 
 /* Upgrade a WRITE_DELAY lock to a WRITE_LOCK */
 
+/* NO_THREAD_SAFETY_ANALYSIS as conditional unlock */
+
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
                                      enum thr_lock_type new_lock_type,
                                      ulong lock_wait_timeout)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   THR_LOCK *lock=data->lock;
   enum enum_thr_lock_result res;
@@ -1616,6 +1622,7 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
 
 my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
                                   ulong lock_wait_timeout)
+  REQUIRES(!data)
 {
   THR_LOCK *lock=data->lock;
   enum thr_lock_type write_lock_type;

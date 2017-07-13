@@ -99,7 +99,7 @@ typedef struct st_thr_lock_info
 } THR_LOCK_INFO;
 
 
-typedef struct st_thr_lock_data {
+typedef struct CAPABILITY("mutex") st_thr_lock_data {
   THR_LOCK_INFO *owner;
   struct st_thr_lock_data *next,**prev;
   struct st_thr_lock *lock;
