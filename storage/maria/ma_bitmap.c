@@ -352,6 +352,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
 
 static inline void _ma_bitmap_mark_file_changed(MARIA_SHARE *share,
                                                 my_bool flush_translog)
+  NO_THREAD_SAFETY_ANALYSIS /* conditional locking and pureconv inspected */
 {                                                
   /*
     It's extremely unlikely that the following test is true as it

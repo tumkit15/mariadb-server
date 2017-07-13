@@ -346,6 +346,7 @@ void _ma_update_status(void* param)
 */
 
 void _ma_update_status_with_lock(MARIA_HA *info)
+  NO_THREAD_SAFETY_ANALYSIS /* conditional locking */
 {
   my_bool locked= 0;
   if (info->state == &info->state_save)
@@ -749,6 +750,7 @@ void maria_versioning(MARIA_HA *info, my_bool versioning)
 */
 
 void _ma_set_share_data_file_length(MARIA_SHARE *share, ulonglong new_length)
+  NO_THREAD_SAFETY_ANALYSIS /* conditional locking */
 {
   if (!share->internal_table)
     mysql_mutex_lock(&share->intern_lock);
@@ -762,7 +764,7 @@ void _ma_set_share_data_file_length(MARIA_SHARE *share, ulonglong new_length)
     }
   }
   if (!share->internal_table)
-  mysql_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
 }
 
 

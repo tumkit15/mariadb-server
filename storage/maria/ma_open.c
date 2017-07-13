@@ -271,6 +271,7 @@ MARIA_HA *maria_clone(MARIA_SHARE *share, int mode)
 ******************************************************************************/
 
 MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
+  NO_THREAD_SAFETY_ANALYSIS /* conditional locking */
 {
   int kfile,open_mode,save_errno;
   uint i,j,len,errpos,head_length,base_pos,keys, realpath_err,
@@ -1364,6 +1365,7 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
 */
 
 uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
+  NO_THREAD_SAFETY_ANALYSIS /* conditional locking */
 {
   uint res;
   if (share->options & HA_OPTION_READ_ONLY_DATA)
