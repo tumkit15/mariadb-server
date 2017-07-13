@@ -9,7 +9,6 @@
 #include "atomic_stat.h"
 #include "my_pthread.h"
 #include <mysql/psi/mysql_table.h>
-#include <mysql/psi/mysql_thread.h>
 
 /*
   Code that is on SQL layer in facebook/mysql-5.6,
