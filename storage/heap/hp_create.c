@@ -22,8 +22,11 @@ static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 
 /* Create a heap table */
 
+/* NO_THREAD_SAFETY_ANALYSIS as lock is conditional */
+
 int heap_create(const char *name, HP_CREATE_INFO *create_info,
                 HP_SHARE **res, my_bool *created_new_share)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   uint i, j, key_segs, max_length, length;
   HP_SHARE *share= 0;
