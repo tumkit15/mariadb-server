@@ -34,6 +34,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	      uint columns, MI_COLUMNDEF *recinfo,
 	      uint uniques, MI_UNIQUEDEF *uniquedefs,
 	      MI_CREATE_INFO *ci,uint flags)
+  NO_THREAD_SAFETY_ANALYSIS /* conditional locks */
 {
   register uint i,j;
   File UNINIT_VAR(dfile),UNINIT_VAR(file);

@@ -22,7 +22,10 @@
 
 #include "myisamdef.h"
 
+/* NO_THREAD_SAFETY_ANALYSIS as conditional locks */
+
 int mi_close(register MI_INFO *info)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   int error=0,flag;
   MYISAM_SHARE *share=info->s;
