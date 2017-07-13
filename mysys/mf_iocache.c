@@ -998,7 +998,7 @@ void remove_io_thread(IO_CACHE *cache)
     0           OK, unlocked, another thread did the read.
 */
 
-static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
+static int lock_io_cache(IO_CACHE *cache, my_off_t pos) TRY_ACQUIRE_CFUNCTION(1,cache)
 {
   IO_CACHE_SHARE *cshare= cache->share;
   DBUG_ENTER("lock_io_cache");
@@ -1142,6 +1142,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
 */
 
 static void unlock_io_cache(IO_CACHE *cache)
+  RELEASE_CFUNCTION(cache)
 {
   IO_CACHE_SHARE *cshare= cache->share;
   DBUG_ENTER("unlock_io_cache");
@@ -1190,12 +1191,16 @@ static void unlock_io_cache(IO_CACHE *cache)
     When changing this function, check _my_b_cache_read(). It might need the
     same change.
 
+    TODO: NO_THREAD_SAFETY_ANALYSIS as couldn't resolve releasing mutex
+   'info|write_cache' that was not held
+
   RETURN
     0      we succeeded in reading all data
     1      Error: can't read requested characters
 */
 
 static int _my_b_cache_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   my_off_t pos_in_file;
   size_t length, diff_length, left_length= 0;
@@ -1312,12 +1317,17 @@ static int _my_b_cache_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
     The write thread will wait for all read threads to join the cache
     lock. Then it copies the data over and wakes the read threads.
 
+  TODO:
+    NO_THREAD_SAFETY_ANALYSIS used as REQUIRES(!write_cache)
+    didn't correctly prevent error about release of unlock_io_cache(write_cache).
+
   RETURN
     void
 */
 
 static void copy_to_read_buffer(IO_CACHE *write_cache,
                                 const uchar *write_buffer, my_off_t pos_in_file)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   size_t write_length= (size_t) (write_cache->pos_in_file - pos_in_file);
   IO_CACHE_SHARE *cshare= write_cache->share;
@@ -1362,9 +1372,13 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
   RETURNS
     0  Success
     1  Failed to read
+  
+  NO_THREAD_SAFETY_ANALYSIS as prefered REQUIRES(!(info->append_buffer_lock))
+  didn't compile.
 */
 
 static int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count)
+  NO_THREAD_SAFETY_ANALYSIS
 {
   size_t length, diff_length, left_length= 0, save_count, max_length;
   my_off_t pos_in_file;
@@ -1894,7 +1908,14 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
 #define UNLOCK_APPEND_BUFFER if (need_append_buffer_lock) \
   unlock_append_buffer(info);
 
+/*
+  NO_THREAD_SAFETY_ANALYSIS is because the static analysis cannot
+  process conditional locks/unlocks. Check coverity analysis
+  if required.
+*/
+
 int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
+   NO_THREAD_SAFETY_ANALYSIS
 {
   size_t length;
   my_bool append_cache= (info->type == SEQ_READ_APPEND);

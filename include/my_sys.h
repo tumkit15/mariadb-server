@@ -390,7 +390,7 @@ typedef struct st_io_cache_share
 #endif
 } IO_CACHE_SHARE;
 
-typedef struct st_io_cache		/* Used when cacheing files */
+typedef struct CAPABILITY("mutex") st_io_cache		/* Used when cacheing files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
   my_off_t pos_in_file;
