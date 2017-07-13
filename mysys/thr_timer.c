@@ -327,7 +327,7 @@ static void send_signal(void *arg)
 }
 
 
-static void run_thread_test(int param)
+static void run_thread_test(int param) NO_THREAD_SAFETY_ANALYSIS
 {
   int i,wait_time,retry;
   my_hrtime_t start_time;
