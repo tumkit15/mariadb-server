@@ -134,16 +134,26 @@ static inline my_bitmap_map last_word_mask(uint bit)
 }
 
 
-static inline void bitmap_lock(MY_BITMAP *map __attribute__((unused)))
+static inline int bitmap_lock(MY_BITMAP *map __attribute__((unused)))
+  TRY_ACQUIRE_CFUNCTION(1, *(map->mutex))
 {
   if (map->mutex)
+  {
     mysql_mutex_lock(map->mutex);
+    return 1;
+  }
+  return 0;
 }
 
-static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
+static inline int bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
+  NO_THREAD_SAFETY_ANALYSIS
 {
   if (map->mutex)
+  {
     mysql_mutex_unlock(map->mutex);
+    return 1;
+  }
+  return 0;
 }
 
 
