@@ -249,7 +249,9 @@ static void ut_dontdump(void *		ptr,
 #if defined(DBUG_OFF) && defined(HAVE_MADVISE) && defined(MADV_DONTDUMP)
 	if (dontdump && madvise(ptr, bytes, MADV_DONTDUMP)) {
 		ib::warn() << "Failed to set memory to DONTDUMP: "
-			    << strerror(errno);
+			   << strerror(errno)
+			   << " ptr " << ptr
+			   << " size " << bytes;
 	}
 #endif
 	if (pfx != NULL) {
@@ -268,7 +270,9 @@ static void ut_dodump(void* ptr, ut_new_pfx_t* pfx)
 #if defined(DBUG_OFF) && defined(HAVE_MADVISE) && defined(MADV_DODUMP)
 	if (madvise(ptr, pfx->m_size, MADV_DODUMP)) {
 		ib::warn() << "Failed to set memory to DODUMP: "
-			   << strerror(errno);
+			   << strerror(errno)
+			   << " ptr " << ptr
+			   << " size " << pfx->m_size;
 	}
 #endif
 }
