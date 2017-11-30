@@ -615,16 +615,17 @@ struct log_t{
 					insertions in the flush_list happen
 					in the LSN order. */
 	ut_new_pfx_t	mem_pfx;	/*!< Auxiliary structure, for perfomance
-					schema memory - buf_ptr */
-	byte*		buf_ptr;	/*!< unaligned log buffer, which should
-					be of double of buf_size */
-	byte*		buf;		/*!< log buffer currently in use;
-					this could point to either the first
-					half of the aligned(buf_ptr) or the
+					schema memory - buf - mainly used to record
+					size for ut_dodump (when free) */
+	byte*		buf;		/*!< Memory of double the buf_size is
+					allocated here. This pointer will change
+					however to either the first half or the
 					second half in turns, so that log
 					write/flush to disk don't block
 					concurrent mtrs which will write
-					log to this buffer */
+					log to this buffer. Care to switch back
+					to the first half before freeing/resizing
+					must be undertaken. */
 	bool		first_in_use;	/*!< true if buf points to the first
 					half of the aligned(buf_ptr), false
 					if the second half */

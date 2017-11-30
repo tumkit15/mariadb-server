@@ -217,7 +217,7 @@ struct recv_sys_t{
 				/*!< this is TRUE when a log rec application
 				batch is running */
 	ut_new_pfx_t	mem_pfx;/*!< Auxiliary structure, for perfomance
-				schema memory - buf_ptr */
+				schema memory - buf */
 				/*!< buf size in bytes */
 	byte*		buf;	/*!< buffer for parsing log records */
 	ulint		len;	/*!< amount of data in buf */

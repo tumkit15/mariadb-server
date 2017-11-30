@@ -1191,10 +1191,13 @@ buf_madvise_do_dump()
 	ulint		n;
 	buf_chunk_t*	chunk;
 
-	/* mirrors log_sys_init() */
-	if (log_sys->buf_ptr)
+	/* mirrors allocation in log_sys_init() */
+	if (log_sys->buf)
 	{
-		ret+= madvise(log_sys->buf_ptr, log_sys->mem_pfx.m_size, MADV_DODUMP);
+		ret+= madvise(log_sys->first_in_use ? log_sys->buf
+						    : log_sys->buf - log_sys->buf_size,
+			      log_sys->mem_pfx.m_size,
+			      MADV_DODUMP);
 	}
 	/* mirrors recv_sys_init() */
 	if (recv_sys->buf)
