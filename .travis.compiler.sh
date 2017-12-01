@@ -27,6 +27,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     #CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
   fi
 else
+  export PATH="/usr/local/opt/ccache/libexec:$PATH"
   # osx_image based tests
   CMAKE_OPT="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
   #CMAKE_OPT="${CMAKE_OPT} -DWITH_ASAN=ON"
