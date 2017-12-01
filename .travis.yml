@@ -16,11 +16,6 @@ compiler:
   - gcc
   - clang
 
-cache:
-  apt: true
-  ccache: true # Does not currently work for clang builds: https://github.com/travis-ci/travis-ci/issues/6201
-  directories:
-    - /usr/local/Cellar # Fails do to permission error: https://github.com/travis-ci/travis-ci/issues/8092
 
 env:
   matrix:
@@ -28,6 +23,14 @@ env:
     - GCC_VERSION=5   TYPE=RelWithDebInfo MYSQL_TEST_SUITES=archive,optimizer_unfixed_bugs,parts,sys_vars,unit,vcol,innodb,innodb_gis,innodb_zip,innodb_fts
     - GCC_VERSION=6   TYPE=RelWithDebInfo MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption,rocksdb
     - GCC_VERSION=6   TYPE=RelWithDebInfo MYSQL_TEST_SUITES=main,csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
+  global:
+    - CACHE_DIR=$([ $TRAVIS_OS_NAME = 'osx' ] && echo "/usr/local/Cellar" || echo "")
+
+cache:
+  apt: true
+  ccache: true # Does not currently work for clang builds: https://github.com/travis-ci/travis-ci/issues/6201
+  directories:
+    - $CACHE_DIR
 
 matrix:
   exclude:
