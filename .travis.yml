@@ -48,7 +48,7 @@ matrix:
           packages: # make sure these match debian/control contents
             - bison
             - chrpath
-            - cmake
+            - cmake3
             - debhelper
             - dh-apparmor
             - dpatch
@@ -119,9 +119,9 @@ addons:
       - clang-5.0
       - llvm-5.0-dev
       - libasan0
+      - cmake3
       - bison
       - chrpath
-      - cmake
       - gdb
       - libaio-dev
       - libboost-dev
