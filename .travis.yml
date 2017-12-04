@@ -26,6 +26,7 @@ env:
   global:
     - CACHE_DIR=$([ $TRAVIS_OS_NAME = 'osx' ] && echo "/usr/local/Cellar" || echo "")
     - CCACHE_CPP2=yes
+    - CACHE_NAME="${TYPE}-${TRAVIS_OS_NAME}-${CXX}-${GCC_VERSION}"
 
 cache:
   apt: true
@@ -82,6 +83,7 @@ matrix:
             - devscripts
             - fakeroot
       script:
+        - env
         - ${CC} --version ; ${CXX} --version
       # https://github.com/travis-ci/travis-ci/issues/7062 - /run/shm isn't writable or executable
       # in trusty containers
