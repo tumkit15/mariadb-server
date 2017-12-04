@@ -16,6 +16,9 @@ compiler:
   - gcc
   - clang
 
+stages:
+  - compile
+  - test
 
 env:
   matrix:
@@ -157,25 +160,29 @@ before_install:
       brew link ccache;
     fi
 
+jobs:
+  include:
+    - stage: compile
+      script:
+        - ccache --version
+        - source .travis.compiler.sh
+        - mkdir build
+        - cd build
+        - cmake ..
+                 -DCMAKE_BUILD_TYPE=${TYPE}
+                 ${CMAKE_OPT}
+                 -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC -DAWS_SDK_EXTERNAL_PROJECT=ON
+        - make -j 6
+        - ccache --show-stats
+
 script:
-  - ccache --version
-# Clang:
-#   mroonga just generates too many warnings with clang and travis stops the job
-#   tokudb has fatal warnings
-  - source .travis.compiler.sh
-  - cmake .
-           -DCMAKE_BUILD_TYPE=${TYPE}
-           ${CMAKE_OPT}
-           -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC -DAWS_SDK_EXTERNAL_PROJECT=ON
-  - make -j 6
+  - cd build
   - cd mysql-test
-# With ASAN --thread-stack=400K to account for overhead
-# Test timeout needs to be 10(minutes) or less due to travis out timeout
+  # Test timeout needs to be 10(minutes) or less due to travis out timeout
   - ./mtr --force --max-test-fail=20 --parallel=6 --testcase-timeout=2
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
          --skip-test=binlog.binlog_unsafe
-  - ccache --show-stats
 
 notifications:
   irc:
