@@ -29,7 +29,8 @@ env:
 
 cache:
   apt: true
-  ccache: true # Does not currently work for clang builds: https://github.com/travis-ci/travis-ci/issues/6201
+  ccache: true
+  timeout: 600
   directories:
     - $CACHE_DIR
 
