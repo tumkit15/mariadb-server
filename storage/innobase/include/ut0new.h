@@ -262,7 +262,7 @@ static void ut_dontdump(void *		ptr,
 	}
 }
 
-static void ut_dodump(void* ptr, ut_new_pfx_t* pfx)
+static void ut_dodump(void* ptr, const ut_new_pfx_t* pfx)
 {
 	if (ptr == NULL) {
 		return;
@@ -412,6 +412,7 @@ public:
 
 		return(reinterpret_cast<pointer>(pfx + 1));
 #else
+		/* TODO, pfx needed for dodump so not NULL */
 		ut_dontdump(ptr, total_bytes, dontdump, NULL, file);
 
 		return(reinterpret_cast<pointer>(ptr));
@@ -619,11 +620,11 @@ public:
 	@param[in]	n_elements	number of elements
 	@param[out]	pfx		storage for the description of the
 	allocated memory.
-	@param[in]      dontdump        if true, advise the OS is not to core
-	dump this memory.
         The caller must provide space for this one and keep
 	it until the memory is no longer needed and then pass it to
 	deallocate_large().
+	@param[in]      dontdump        if true, advise the OS is not to core
+	dump this memory.
 	@return pointer to the allocated memory or NULL */
 	pointer
 	allocate_large(
@@ -654,14 +655,17 @@ public:
 	@param[in,out]	ptr	pointer to memory to free
 	@param[in]	pfx	descriptor of the memory, as returned by
 	allocate_large().
-	@param[in]      dodump  if true, advise the OS to dump
-	dump this memory again if a core dump occurs. */
+	@param[in]      dodump  if true, advise the OS to include this
+	memory again if a core dump occurs. */
 	void
 	deallocate_large(
 		pointer			ptr,
 		const ut_new_pfx_t*	pfx,
 		bool			dodump = false)
 	{
+		if (dodump) {
+			ut_dodump(ptr, pfx);
+		}
 #ifdef UNIV_PFS_MEMORY
 		deallocate_trace(pfx);
 #endif /* UNIV_PFS_MEMORY */
@@ -971,11 +975,10 @@ static inline void ut_free_dodump(void *ptr, ut_new_pfx_t *key)
 {
 	ulint size= key->m_size;
 
+	ut_dodump(ptr, key);
 #ifdef UNIV_PFS_MEMORY
 	deallocate_trace(key);
 #endif
-	ut_dodump(ptr, key);
-
 	os_mem_free_large(ptr, size);
 }
 

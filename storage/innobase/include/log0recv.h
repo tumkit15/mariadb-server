@@ -218,7 +218,6 @@ struct recv_sys_t{
 				batch is running */
 	ut_new_pfx_t	mem_pfx;/*!< Auxiliary structure, for perfomance
 				schema memory - buf */
-				/*!< buf size in bytes */
 	byte*		buf;	/*!< buffer for parsing log records */
 	ulint		len;	/*!< amount of data in buf */
 	lsn_t		parse_start_lsn;
