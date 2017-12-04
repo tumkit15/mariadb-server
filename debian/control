@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: MariaDB Developers <maria-developers@lists.launchpad.net>
 Build-Depends: bison,
                chrpath,
-               cmake (>= 2.7),
+               cmake (>= 2.7) | cmake3,
                debhelper (>= 9),
                dh-apparmor,
                dh-systemd,
