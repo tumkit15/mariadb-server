@@ -237,9 +237,7 @@ log_buffer_extend(
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
 	log_sys->buf = static_cast<byte*>(
-		ut_malloc_dontdump(
-			log_sys->buf_size * 2 + OS_FILE_LOG_BLOCK_SIZE,
-			&log_sys->mem_pfx));
+		ut_malloc_dontdump(log_sys->buf_size * 2, &log_sys->mem_pfx));
 
 	log_sys->first_in_use = true;
 
@@ -728,8 +726,7 @@ log_sys_init()
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
 	log_sys->buf = static_cast<byte*>(
-		ut_malloc_dontdump(log_sys->buf_size * 2  + OS_FILE_LOG_BLOCK_SIZE,
-				   &log_sys->mem_pfx));
+		ut_malloc_dontdump(log_sys->buf_size * 2, &log_sys->mem_pfx));
 
 	log_sys->first_in_use = true;
 
