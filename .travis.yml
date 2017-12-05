@@ -24,7 +24,7 @@ env:
     - GCC_VERSION=6   TYPE=RelWithDebInfo MYSQL_TEST_SUITES=binlog,binlog_encryption,encryption,rocksdb
     - GCC_VERSION=6   TYPE=RelWithDebInfo MYSQL_TEST_SUITES=main,csv,federated,funcs_1,funcs_2,gcol,handler,heap,json,maria,percona,perfschema,plugins,multi_source,roles
   global:
-    - CACHE_DIR=$([ $TRAVIS_OS_NAME = 'osx' ] && echo "/usr/local/Cellar" || echo "~/.empty")
+    - CACHE_DIR=$([ $TRAVIS_OS_NAME = 'osx' ] && echo "/usr/local/Cellar" || echo "${HOME}/extras")
     - CCACHE_CPP2=yes
 
 cache:
