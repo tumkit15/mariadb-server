@@ -170,7 +170,7 @@ script:
   - make -j 6
 # Subprocess to kill off tests 2 minutes before 50 minute timeout
   - STARTTIME=$([[ "${TRAVIS_OS_NAME}" == 'osx' ]] && stat -f %m -t %s .. || stat --format %Y ..)
-  - REMAINING_TIME=$(( 48*60 + $(date +%s) - $STARTTIME ))
+  - REMAINING_TIME=$(( 48*60 - ( $(date +%s) - $STARTTIME ) ))
   - echo "Allowing ${REMAINING_TIME} seconds of tests to occur"
   - ( sleep $REMAINING_TIME; killall perl ) & KILLTESTJOB=$!
 # Test timeout needs to be 10(minutes) or less due to travis out timeout
