@@ -175,10 +175,12 @@ script:
   - ( sleep $REMAINING_TIME; killall perl ) & KILLTESTJOB=$!
 # Test timeout needs to be 10(minutes) or less due to travis out timeout
   - cd mysql-test
+# 143 = 128 + SIGTERM (15) so don't fail the tests if we kill off mtr
   - ./mtr --force --max-test-fail=20 --parallel=6 --testcase-timeout=2
          --suite=${MYSQL_TEST_SUITES}
          --skip-test-list=unstable-tests
          --skip-test=binlog.binlog_unsafe
+         || [ $? == 143 ] && true
   - kill $KILLTESTJOB || /bin/true
   - ccache --show-stats
 
