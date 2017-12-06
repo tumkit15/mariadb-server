@@ -30,7 +30,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   if [[ ${GCC_VERSION} == 6 && ! -f ${HOME}/extras/usr/lib/libgalera_smm.so ]]; then
          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb
          ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb
-         tar -xJvf data.tar.xz -C extras
+         tar -xJvf data.tar.xz -C ${HOME}/extras
          export WSREP_PROVIDER=$HOME/extras/usr/lib/libgalera_smm.so
          MYSQL_TEST_SUITES="${MYSQL_TEST_SUITES},wsrep"
   fi
