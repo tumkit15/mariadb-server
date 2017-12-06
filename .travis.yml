@@ -169,7 +169,7 @@ script:
            -DWITH_SSL=system -DWITH_ZLIB=system -DPLUGIN_AWS_KEY_MANAGEMENT=DYNAMIC -DAWS_SDK_EXTERNAL_PROJECT=ON
   - make -j 6
 # Subprocess to kill off tests 2 minutes before 50 minute timeout
-  - STARTIME=$([[ "${TRAVIS_OS_NAME}" == 'osx' ]] && stat -f %m -t %s .. || stat --format %Y ..)
+  - STARTTIME=$([[ "${TRAVIS_OS_NAME}" == 'osx' ]] && stat -f %m -t %s .. || stat --format %Y ..)
   - REMAINING_TIME=$(( 48*60 + $(date +%s) - $STARTTIME ))
   - echo "Allowing ${REMAINING_TIME} seconds of tests to occur"
   - ( sleep $REMAINING_TIME; killall perl ) & KILLTESTJOB=$!
