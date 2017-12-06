@@ -23,7 +23,7 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   # Pull newer version of ccache (same libc/zlib as Trusty)
   if [[ ! -f ${HOME}/extras/usr/bin/ccache ]]; then
     wget http://ftp.osuosl.org/pub/ubuntu/pool/main/c/ccache/ccache_3.3.4-1_amd64.deb
-    ar ccache_3.3.4-1_amd64.deb
+    ar vx ccache_3.3.4-1_amd64.deb
     tar -xJvf data.tar.xz -C ${HOME}/extras
   fi
   export PATH="${HOME}/extras/usr/bin:$PATH"
