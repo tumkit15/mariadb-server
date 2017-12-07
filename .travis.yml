@@ -182,7 +182,7 @@ script:
          --skip-test-list=unstable-tests
          --skip-test=binlog.binlog_unsafe
          || [ $? == 143 ] && true
-  - kill $KILLTESTJOB || /bin/true
+  - kill $KILLTESTJOB || true
   - ccache --show-stats
 
 notifications:
