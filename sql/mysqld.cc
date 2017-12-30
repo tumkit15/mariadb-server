@@ -2792,7 +2792,41 @@ static void network_init(void)
     bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
-    (void) unlink(mysqld_unix_port);
+    if (mysql_socket_connect(unix_sock,
+                          reinterpret_cast<struct sockaddr *>(&UNIXaddr),
+                          sizeof(UNIXaddr)) < 0)
+    {
+      /* ENOENT is expected as we hope the unix_socket doesn't exist yet */
+      if (errno != ENOENT)
+      {
+        sql_print_warning("Warning connecting to socket (pre-bind test): %s ?",mysqld_unix_port);
+      }
+    }
+    else
+    {
+      /* we connected. Might be hung so we read for 3 seconds and if that succeeds we
+         are trampling on an existing server so abort. */
+      unsigned char read_buffer[200];
+      struct timeval recvtimeout= { 3, 0 };
+      (void) mysql_socket_setsockopt(unix_sock,SOL_SOCKET,SO_RCVTIMEO,
+                                     (char*)&recvtimeout, sizeof(recvtimeout));
+
+      if (mysql_socket_recvfrom(unix_sock, read_buffer, sizeof(read_buffer)
+                                , 0, NULL, NULL) < 0
+                                && (errno == EAGAIN || errno == EWOULDBLOCK))
+      {
+        mysql_socket_close(unix_sock);
+        (void) unlink(mysqld_unix_port);
+        unix_sock= mysql_socket_socket(key_socket_unix, AF_UNIX, SOCK_STREAM, 0);
+        mysql_socket_set_thread_owner(unix_sock);
+      }
+      else
+      {
+        mysql_socket_close(unix_sock);
+        sql_print_error("Do you already have another mysqld server running on socket: %s ?",mysqld_unix_port);
+        unireg_abort(1);
+      }
+    }
     arg= 1;
     (void) mysql_socket_setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,
                                    (char*)&arg, sizeof(arg));
