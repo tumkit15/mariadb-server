@@ -52,6 +52,29 @@ call create_part_max();
 
 drop procedure create_part_max;
 
+DELIMITER //;
+
+CREATE PROCEDURE create_part_range()
+BEGIN
+  DROP TABLE IF EXISTS t1 ;
+
+  CREATE TABLE t1 (
+    id INT PRIMARY KEY
+  )
+  PARTITION BY RANGE (id) (
+    PARTITION P1 VALUES LESS THAN (2),
+    PARTITION P2 VALUES LESS THAN (3)
+  );
+END //
+
+DELIMITER ;//
+
+call create_part_range();
+call create_part_range();
+
+drop procedure create_part_range;
+drop table t1;
+
 prepare stmt from "alter table `test_data`
      partition by range(unix_timestamp(clocktime)) (
      partition partMAX values less than MAXVALUE
