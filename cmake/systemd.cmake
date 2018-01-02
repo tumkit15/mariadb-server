@@ -43,7 +43,9 @@ MACRO(CHECK_SYSTEMD)
       #include <systemd/sd-daemon.h>
       int main()
       {
+        int fd;
         sd_listen_fds(0);
+        sd_pid_notify_with_fds(0, 0, \"FDNAME=wsrep_position\nFDSTORE=1\", &fd, 1);
       }"
       HAVE_SYSTEMD)
       CHECK_INCLUDE_FILES(systemd/sd-daemon.h HAVE_SYSTEMD_SD_DAEMON_H)

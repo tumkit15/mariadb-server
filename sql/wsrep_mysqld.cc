@@ -39,6 +39,18 @@
 #include "log_event.h"
 #include <slave.h>
 #include "sql_plugin.h"                         /* wsrep_plugins_pre_init() */
+#include <my_systemd.h>
+
+#if defined(HAVE_SYSTEMD)
+#include <linux/memfd.h>
+#include <sys/syscall.h>
+static inline int memfd_create(const char *name, unsigned int flags)
+{
+  return syscall(__NR_memfd_create, name, flags);
+}
+
+#include <my_sys.h>
+#endif
 
 wsrep_t *wsrep                  = NULL;
 /*
@@ -585,6 +597,27 @@ int wsrep_init()
   int rcode= -1;
   DBUG_ASSERT(wsrep_inited == 0);
 
+#if defined(HAVE_SYSTEMD)
+  int fd= SD_LISTEN_FDS_START;
+  char **names;
+  char position_buffer[80];
+  if (sd_listen_fds_with_names(0, &names) == 0)
+  {
+    while (*names)
+    {
+      if (strcmp(*names, "wsrep_recovery") == 0)
+      {
+        my_seek(fd, 0, SEEK_SET, MYF(0));
+        my_read(fd, (uchar*)position_buffer, sizeof(position_buffer), MYF(0));
+        my_close(fd, MYF(0));
+        wsrep_start_position= position_buffer;
+        break;
+      }
+      fd++;
+      names++;
+    }
+  }
+#endif
   if (strcmp(wsrep_start_position, WSREP_START_POSITION_ZERO) &&
       wsrep_start_position_init(wsrep_start_position))
   {
@@ -900,6 +933,23 @@ void wsrep_recover()
   wsrep_get_SE_checkpoint(uuid, seqno);
   wsrep_uuid_print(&uuid, uuid_str, sizeof(uuid_str));
   WSREP_INFO("Recovered position: %s:%lld", uuid_str, (long long)seqno);
+#if defined(HAVE_SYSTEMD)
+  int fd;
+  FILE *fp;
+  if ((fd= memfd_create("wsrep_position", MFD_CLOEXEC)) < 0)
+  {
+    goto end;
+  }
+  if ((fp= my_fdopen(fd, "wsrep_position", O_WRONLY, MYF(0))) != 0)
+  {
+    fprintf(fp, "%s:%lld", uuid_str, (long long)seqno);
+    fflush(fp);
+    sd_pid_notify_with_fds(0, 0, "FDNAME=wsrep_position\nFDSTORE=1", &fd, 1);
+    my_fclose(fp, MYF(0));
+  }
+end:
+  close(fd);
+#endif
 }
 
 

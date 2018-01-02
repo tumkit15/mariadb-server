@@ -58,34 +58,28 @@ PrivateDevices=true
 # Prevent accessing /home, /root and /run/user
 ProtectHome=true
 
-# Execute pre and post scripts as root, otherwise it does it as User=
-PermissionsStartOnly=true
-
 @SYSTEMD_EXECSTARTPRE@
 
 # Perform automatic wsrep recovery. When server is started without wsrep,
-# galera_recovery simply returns an empty string. In any case, however,
-# the script is not expected to return with a non-zero status.
-# It is always safe to unset _WSREP_START_POSITION environment variable.
+# galera_recovery simply returns an empty string.
 # Do not panic if galera_recovery script is not available. (MDEV-10538)
-ExecStartPre=/bin/sh -c "systemctl unset-environment _WSREP_START_POSITION"
-ExecStartPre=/bin/sh -c "[ ! -e @bindir@/galera_recovery ] && VAR= || \
- VAR=`@bindir@/galera_recovery`; [ $? -eq 0 ] \
- && systemctl set-environment _WSREP_START_POSITION=$VAR || exit 1"
+ExecStartPre=/bin/sh -c "[ -x @bindir@/galera_recovery ] && @bindir@/galera_recovery"
 
 # Needed to create system tables etc.
-# ExecStartPre=@scriptdir@/mysql_install_db -u mysql
+# ExecStartPre=@scriptdir@/mysql_install_db
 
 # Start main service
 # MYSQLD_OPTS here is for users to set in /etc/systemd/system/mariadb.service.d/MY_SPECIAL.conf
 # Use the [Service] section and Environment="MYSQLD_OPTS=...".
 # This isn't a replacement for my.cnf.
 # _WSREP_NEW_CLUSTER is for the exclusive use of the script galera_new_cluster
-ExecStart=@sbindir@/mysqld $MYSQLD_OPTS $_WSREP_NEW_CLUSTER $_WSREP_START_POSITION
+ExecStart=@sbindir@/mysqld $MYSQLD_OPTS $_WSREP_NEW_CLUSTER
+
 @SYSTEMD_EXECSTARTPOST@
 
-# Unset _WSREP_START_POSITION environment variable.
-ExecStartPost=/bin/sh -c "systemctl unset-environment _WSREP_START_POSITION"
+# Use a file descriptor to pass the start position between the galera_recovery
+# and the real ExecStart
+FileDescriptorStoreMax=1
 
 KillMode=process
 KillSignal=SIGTERM
