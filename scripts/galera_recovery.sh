@@ -51,16 +51,16 @@ trap finish EXIT
 
 parse_arguments() {
   for arg do
-    val=`echo "$arg" | sed -e "s;--[^=]*=;;"`
     case "$arg" in
       --wsrep[-_]on) wsrep_on=1 ;;
       --skip[-_]wsrep[-_]on) wsrep_on=0 ;;
       --wsrep[-_]on=*)
-        if echo $val | grep -iq '\(ON\|1\)'; then
-          wsrep_on=1
-        else
-          wsrep_on=0
-        fi
+        case "${arg#*=}" in
+          [oO][nN]|1)
+            wsrep_on=1 ;;
+          *)
+            wsrep_on=0 ;;
+        esac
         ;;
     esac
   done
