@@ -66,7 +66,7 @@ case "$1" in
         shift
         ;;
     '--defaults-group-suffix')
-        WSREP_SST_OPT_CONF_SUFFIX="$2"
+        readonly WSREP_SST_OPT_CONF_SUFFIX="$1=$2"
         shift
         ;;
     '--host')
@@ -122,7 +122,6 @@ shift
 done
 readonly WSREP_SST_OPT_BYPASS
 readonly WSREP_SST_OPT_BINLOG
-readonly WSREP_SST_OPT_CONF_SUFFIX
 
 # try to use my_print_defaults, mysql and mysqldump that come with the sources
 # (for MTR suite)
@@ -150,7 +149,7 @@ else
     MY_PRINT_DEFAULTS=$(which my_print_defaults)
 fi
 
-readonly WSREP_SST_OPT_CONF="$WSREP_SST_OPT_DEFAULT $WSREP_SST_OPT_EXTRA_DEFAULT"
+readonly WSREP_SST_OPT_CONF="$WSREP_SST_OPT_DEFAULT $WSREP_SST_OPT_EXTRA_DEFAULT $WSREP_SST_OPT_CONF_SUFFIX"
 MY_PRINT_DEFAULTS="$MY_PRINT_DEFAULTS $WSREP_SST_OPT_CONF"
 wsrep_auth_not_set()
 {
@@ -254,11 +253,6 @@ parse_cnf()
     # normalize the variable names specified in cnf file (user can use _ or - for example log-bin or log_bin)
     # then grep for needed variable
     # finally get the variable value (if variables has been specified multiple time use the last value only)
-
-    # look in group+suffix
-    if [ -n $WSREP_SST_OPT_CONF_SUFFIX ]; then
-        reval=$($MY_PRINT_DEFAULTS "${group}${WSREP_SST_OPT_CONF_SUFFIX}" | awk -F= '{if ($1 ~ /_/) { gsub(/_/,"-",$1); print $1"="$2 } else { print $0 }}' | grep -- "--$var=" | cut -d= -f2- | tail -1)
-    fi
 
     # look in group
     if [ -z $reval ]; then
