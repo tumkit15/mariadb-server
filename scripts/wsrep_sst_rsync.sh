@@ -199,26 +199,6 @@ then
 
         sync
 
-        if ! [ -z $WSREP_SST_OPT_BINLOG ]
-        then
-            # Prepare binlog files
-            OLD_PWD="$(pwd)"
-            cd $BINLOG_DIRNAME
-
-            binlog_files_full=$(tail -n $BINLOG_N_FILES ${BINLOG_FILENAME}.index)
-            binlog_files=""
-            for ii in $binlog_files_full
-            do
-                binlog_files="$binlog_files $(basename $ii)"
-            done
-            if ! [ -z "$binlog_files" ]
-            then
-                wsrep_log_info "Preparing binlog files for transfer:"
-                tar -cvf $BINLOG_TAR_FILE $binlog_files >&2
-            fi
-            cd "$OLD_PWD"
-        fi
-
         # first, the normal directories, so that we can detect incompatible protocol
         RC=0
         eval rsync --owner --group --perms --links --specials \
@@ -243,7 +223,47 @@ then
             exit $RC
         fi
 
+        if ! [ -z $WSREP_SST_OPT_BINLOG ]
+        then
+            # Prepare binlog files
+            OLD_PWD="$(pwd)"
+            cd $BINLOG_DIRNAME
+
+            binlog_files_full=$(tail -n $BINLOG_N_FILES "${BINLOG_FILENAME}.index")
+            binlog_files=""
+            filter_binlog_files=""
+            for ii in $binlog_files_full
+            do
+                [ -z "${ii}" ] && continue
+                fn=$(basename "${ii}")
+                binlog_files="$binlog_files $fn"
+                filter_binlog_files="$filter_binlog_files -f '+ $fn'"
+            done
+
+            if ! [ -z "$binlog_files" ]
+            then
+                RC=0
+                eval rsync --owner --group --perms --links --specials \
+                      --ignore-times --inplace --dirs --delete --quiet \
+                      $WHOLE_FILE_OPT ${filter_binlog_files} \
+                      rsync://$WSREP_SST_OPT_ADDR-binlog_dir >&2 || RC=$?
+
+                case $RC in
+                0)  break ;;
+                5)  wsrep_log_info "rsync binlogs returned code $RC (rsync://$WSREP_SST_OPT_ADDR-binlog_dir  not found):"
+                    wsrep_log_info "Assuming older wsrep_sst_rsync donor and reparing binlog files for transfer:"
+                    tar -cvf $BINLOG_TAR_FILE $binlog_files >&2 &
+                    ;;
+                *)  wsrep_log_error "binlog rsync returned code $RC:"
+                    exit 255
+                    ;;
+                esac
+            fi
+            cd "$OLD_PWD"
+        fi
+
         # second, we transfer InnoDB log files
+        RC=0
         rsync --owner --group --perms --links --specials \
               --ignore-times --inplace --dirs --delete --quiet \
               $WHOLE_FILE_OPT -f '+ /ib_logfile[0-9]*' -f '- **' "$WSREP_LOG_DIR/" \
@@ -340,6 +360,8 @@ $SILENT
     path = $WSREP_SST_OPT_DATA
 [$MODULE-log_dir]
     path = $WSREP_LOG_DIR
+[$MODULE-binlog_dir]
+    path = ${BINLOG_DIRNAME:-${WSREP_SST_OPT_DATA}}
 EOF
 
 #    rm -rf "$DATA"/ib_logfile* # we don't want old logs around
