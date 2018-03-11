@@ -22,6 +22,9 @@ RSYNC_PID=                                      # rsync pid file
 RSYNC_CONF=                                     # rsync configuration file
 RSYNC_REAL_PID=                                 # rsync process id
 
+RSYNC_DEBUG="--info=FLIST4,DEL2,COPY2 --debug=FILTER4,FLIST4"
+#RSYNC_DEBUG="--quiet"
+
 OS=$(uname)
 [ "$OS" = "Darwin" ] && export -n LD_LIBRARY_PATH
 
@@ -32,6 +35,7 @@ export PATH="/usr/sbin:/sbin:$PATH"
 
 wsrep_check_programs rsync
 
+set -x -v
 cleanup_joiner()
 {
     wsrep_log_info "Joiner cleanup. rsync PID: $RSYNC_REAL_PID"
@@ -201,8 +205,8 @@ then
 
         # first, the normal directories, so that we can detect incompatible protocol
         RC=0
-        eval rsync --owner --group --perms --links --specials \
-              --ignore-times --inplace --dirs --delete --quiet \
+        eval rsync $RSYNC_DEBUG --owner --group --perms --links --specials \
+              --ignore-times --inplace --dirs --delete \
               $WHOLE_FILE_OPT ${FILTER} "$WSREP_SST_OPT_DATA/" \
               rsync://$WSREP_SST_OPT_ADDR >&2 || RC=$?
 
@@ -237,14 +241,14 @@ then
                 [ -z "${ii}" ] && continue
                 fn=$(basename "${ii}")
                 binlog_files="$binlog_files $fn"
-                filter_binlog_files="$filter_binlog_files -f '+ $fn'"
+                filter_binlog_files="$filter_binlog_files -f '+ /$fn'"
             done
 
             if ! [ -z "$binlog_files" ]
             then
                 RC=0
-                eval rsync --owner --group --perms --links --specials \
-                      --ignore-times --inplace --dirs --delete --quiet \
+                eval rsync $RSYNC_DEBUG --owner --group --perms --links --specials \
+                      --ignore-times --inplace \
                       $WHOLE_FILE_OPT ${filter_binlog_files} \
                       rsync://$WSREP_SST_OPT_ADDR-binlog_dir >&2 || RC=$?
 
@@ -264,8 +268,8 @@ then
 
         # second, we transfer InnoDB log files
         RC=0
-        rsync --owner --group --perms --links --specials \
-              --ignore-times --inplace --dirs --delete --quiet \
+        rsync $RSYNC_DEBUG --owner --group --perms --links --specials \
+              --ignore-times --inplace --dirs --delete \
               $WHOLE_FILE_OPT -f '+ /ib_logfile[0-9]*' -f '- **' "$WSREP_LOG_DIR/" \
               rsync://$WSREP_SST_OPT_ADDR-log_dir >&2 || RC=$?
 
@@ -284,8 +288,8 @@ then
 
         find . -maxdepth 1 -mindepth 1 -type d -not -name "lost+found" \
              -print0 | xargs -I{} -0 -P $count \
-             rsync --owner --group --perms --links --specials \
-             --ignore-times --inplace --recursive --delete --quiet \
+             rsync $RSYNC_DEBUG --owner --group --perms --links --specials \
+             --ignore-times --inplace --recursive --delete \
              $WHOLE_FILE_OPT --exclude '*/ib_logfile*' "$WSREP_SST_OPT_DATA"/{}/ \
              rsync://$WSREP_SST_OPT_ADDR/{} >&2 || RC=$?
 
@@ -307,7 +311,7 @@ then
     echo "continue" # now server can resume updating data
 
     echo "$STATE" > "$MAGIC_FILE"
-    rsync --archive --quiet --checksum "$MAGIC_FILE" rsync://$WSREP_SST_OPT_ADDR
+    rsync $RSYNC_DEBUG --archive --checksum "$MAGIC_FILE" rsync://$WSREP_SST_OPT_ADDR
 
     echo "done $STATE"
 
@@ -355,6 +359,7 @@ pid file = $RSYNC_PID
 use chroot = no
 read only = no
 timeout = 300
+max verbosity = 6
 $SILENT
 [$MODULE]
     path = $WSREP_SST_OPT_DATA
@@ -406,17 +411,16 @@ EOF
         OLD_PWD="$(pwd)"
         cd $BINLOG_DIRNAME
 
+        # tar; for backwards compatibility with old joiner
         if [ -f $BINLOG_TAR_FILE ]
         then
             # Clean up old binlog files first
             rm -f ${BINLOG_FILENAME}.*
             wsrep_log_info "Extracting binlog files:"
             tar -xvf $BINLOG_TAR_FILE >&2
-            for ii in $(ls -1 ${BINLOG_FILENAME}.*)
-            do
-                echo ${BINLOG_DIRNAME}/${ii} >> ${BINLOG_FILENAME}.index
-            done
         fi
+
+        ls -1 ${BINLOG_FILENAME}.* > ${BINLOG_FILENAME}.index
         cd "$OLD_PWD"
 
     fi
