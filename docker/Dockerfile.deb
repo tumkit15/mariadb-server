@@ -1,0 +1,64 @@
+# Docker file for building deb packages (Debian and Ubuntu tested)
+#
+# BUILD
+# =====
+
+# Build from top level source directory (uses VERSION,debian/* to install dependencies):
+# 
+# Defaults to ubuntu however any tag of a distro that uses debian packaging
+#
+# Ubuntu (default - tag:latest LTS)
+#   docker build --tag  mariadb-build-ubuntu  -f docker/Dockerfile.deb  .
+# or Debian (stable):
+#   docker build --tag  mariadb-build-debian  --build-arg DISTRO=debian -f docker/Dockerfile.deb  .
+# or Debian (sid):
+#   docker build --tag  mariadb-build-debian-sid  --build-arg DISTRO=debian:sid -f docker/Dockerfile.deb  .
+#
+# RUN
+# ===
+#
+# VOLUME:
+#   /source - the top level source code directory
+#   /ccache - a compiler cache shared build builds. Create with "docker volume mariadb-ccache"
+#   /packages - contains repositories of built packages. Either a docker volumne or a host directory
+#            --mount type=bind,source=$HOME/packages,target=/packages --user=$USER
+# SHM - used by mtr --mem
+# USER - so that the packages is writable
+#
+# docker run --mount type=bind,source=$PWD,target=/source,readonly \
+#            --mount source=mariadb-ccache,target=/ccache \
+#            --mount source=mariadb-packages,target=/packages \
+#            --shm-size=1G \
+#            mariadb-build-ubuntu
+
+ARG DISTRO=ubuntu:latest
+
+FROM $DISTRO
+
+ENV DEBIAN_FRONTEND	noninteractive
+
+RUN mkdir /build && chmod a+rwx /build
+
+RUN apt-get update && apt-get install -y devscripts equivs ccache
+
+WORKDIR /build
+COPY VERSION ./
+COPY debian/ ./debian/
+RUN mk-build-deps debian/control
+RUN apt-get install -y ./mariadb-*build-deps_*deb
+
+RUN sed -i -e 's:\.\.:/source:' debian/rules
+# Can't apply patches as source is readonly. There shouldn't be any anyway
+RUN rm -rf debian/patches
+
+ARG DISTRO
+ARG CC=gcc
+ARG CXX=g++
+VOLUME /source /ccache /packages
+ENV CCACHE_DIR /ccache/$DISTRO-$CXX
+ENV MYSQL_COMPILER_LAUNCHER=ccache
+#ENV CC=$CC
+#ENV CXX=$CXX
+#COPY docker/create-repo /
+
+CMD  dpkg-buildpackage -us -uc -I -b -J $(nproc) && (cd buildir ; ./mysql-test/mtr --mem --parallel=$(nproc) --max-test-fail=20 ) && /create-repo
