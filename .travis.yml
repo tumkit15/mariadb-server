@@ -172,7 +172,9 @@ script:
 # cland disabled: tokudb has fatal warnings
 # gcc/rpl: tokudb and mroonga
   - source .travis.compiler.sh
-  - cmake .
+  - mkdir "$HOME/cmake-out-of-tree-build"
+  - cd "$HOME/cmake-out-of-tree-build"
+  - cmake "${TRAVIS_BUILD_DIR}"
            -DCMAKE_BUILD_TYPE=${TYPE}
            ${CMAKE_OPT}
            -DWITH_SSL=system -DWITH_ZLIB=system
