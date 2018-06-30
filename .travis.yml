@@ -159,6 +159,8 @@ before_install:
       brew update;
       brew install gnutls lz4 lzo xz snappy ccache jemalloc curl ossp-uuid pcre;
       brew link ccache;
+    else
+      export MTR_MEM=/tmp;
     fi
 
 before_script:
