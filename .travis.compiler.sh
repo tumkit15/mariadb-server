@@ -23,12 +23,22 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   ccache --max-size=1200M
 
   if [[ "${CXX}" == 'clang++' ]]; then
-    export CXX CC=${CXX/++/}
+    case "${CC_VERSION}" in
+      7*)
+        export CC=clang-7
+        export CXX=clang++-7
+        ;;
+      *)
+        export CC=clang-${CC_VERSION}.0
+        export CXX=clang++-${CC_VERSION}.0
+        ;;
+      *)
+    esac
   elif [[ "${CXX}" == 'g++' ]]; then
     export CXX=g++-${CC_VERSION}
     export CC=gcc-${CC_VERSION}
   fi
-  if [[ ${CC_VERSION} == 6 ]]; then
+  if [[ ${CC_VERSION} == 7 ]]; then
     wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
     ar vx percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb
     tar -xJvf data.tar.xz
