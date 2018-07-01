@@ -1,20 +1,21 @@
-#!/bin/sh
+#!/bin/bash
 set -v -x
+CMAKE_OPT=()
 
 # Exclude modules from build not directly affecting the current
 # test suites found in $MYSQL_TEST_SUITES, to conserve job time
 # as well as disk usage
 
 function exclude_modules() {
-# excludes for all
-CMAKE_OPT="${CMAKE_OPT} -DPLUGIN_TOKUDB=NO -DPLUGIN_MROONGA=NO -DPLUGIN_SPIDER=NO -DPLUGIN_OQGRAPH=NO -DPLUGIN_PERFSCHEMA=NO -DPLUGIN_SPHINX=NO"
-# exclude storage engines not being tested in current job
-if [[ ! "${MYSQL_TEST_SUITES}" =~ "archive" ]]; then
-  CMAKE_OPT="${CMAKE_OPT} -DPLUGIN_ARCHIVE=NO"
-fi
-if [[ ! "${MYSQL_TEST_SUITES}" =~ "rocksdb" ]]; then
-  CMAKE_OPT="${CMAKE_OPT} -DPLUGIN_ROCKSDB=NO"
-fi
+  # excludes for all
+  CMAKE_OPT+=(-DPLUGIN_TOKUDB=NO -DPLUGIN_MROONGA=NO -DPLUGIN_SPIDER=NO -DPLUGIN_OQGRAPH=NO -DPLUGIN_PERFSCHEMA=NO -DPLUGIN_SPHINX=NO)
+  # exclude storage engines not being tested in current job
+  if [[ ! "${MYSQL_TEST_SUITES}" =~ "archive" ]]; then
+    CMAKE_OPT+=(-DPLUGIN_ARCHIVE=NO)
+  fi
+  if [[ ! "${MYSQL_TEST_SUITES}" =~ "rocksdb" ]]; then
+    CMAKE_OPT+=(-DPLUGIN_ROCKSDB=NO)
+  fi
 }
 
 if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
@@ -34,24 +35,24 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     esac
     export CC=clang-${V}
     export CXX=clang++-${V}
-    CMAKE_OPT="${CMAKE_OPT} -DCMAKE_AR=llvm-ar-${V} -DCMAKE_RANLIB=llvm-ranlib-${V}"
+    CMAKE_OPT+=(-DCMAKE_AR=llvm-ar-${V} -DCMAKE_RANLIB=llvm-ranlib-${V})
     ld=lld-${V}
     for lang in C CXX
     do
-      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_CREATE_SHARED_LIBRARY=\"${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>\""
-      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_LINK_EXECUTABLE=\"${ld}  <FLAGS> <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>\""
+      CMAKE_OPT+=(-DCMAKE_${lang}_CREATE_SHARED_LIBRARY="${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
+      CMAKE_OPT+=(-DCMAKE_${lang}_LINK_EXECUTABLE="${ld} <FLAGS> <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>")
     done
   elif [[ "${CXX}" == 'g++' ]]; then
     export CXX=g++-${CC_VERSION}
     export CC=gcc-${CC_VERSION}
     if [[ ${CC_VERSION} == 7 ]]; then
       V=2.26
-      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_AR=ar-${V} -DCMAKE_RANLIB=ranlib-${V}"
+      CMAKE_OPT+=(-DCMAKE_AR=ar-${V} -DCMAKE_RANLIB=ranlib-${V})
       ld=ld.gold-${V}
       for lang in C CXX
       do
-        CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_CREATE_SHARED_LIBRARY=\"${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>\""
-        CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_LINK_EXECUTABLE=\"${ld}  <FLAGS> <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>\""
+        CMAKE_OPT+=(-DCMAKE_${lang}_CREATE_SHARED_LIBRARY="${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
+        CMAKE_OPT+=(-DCMAKE_${lang}_LINK_EXECUTABLE="${ld} <FLAGS> <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>")
       done
     fi
   fi
@@ -67,11 +68,11 @@ fi
 if [[ "${TRAVIS_OS_NAME}" == 'osx' ]]; then
   TEST_CASE_TIMEOUT=20
   exclude_modules;
-  CMAKE_OPT="${CMAKE_OPT} -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
+  CMAKE_OPT+=(-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl)
 fi
 
 if which ccache ; then
-  CMAKE_OPT="${CMAKE_OPT} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+  CMAKE_OPT+=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 fi
 
 set +v +x

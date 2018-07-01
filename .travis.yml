@@ -176,12 +176,13 @@ script:
 # clang disabled: mroonga just generates too many warnings with clang and travis stops the job
 # cland disabled: tokudb has fatal warnings
 # gcc/rpl: tokudb and mroonga
+  - echo $SHELL
   - source .travis.compiler.sh
   - mkdir "$HOME/cmake-out-of-tree-build"
   - cd "$HOME/cmake-out-of-tree-build"
   - cmake "${TRAVIS_BUILD_DIR}"
            -DCMAKE_BUILD_TYPE=${TYPE}
-           ${CMAKE_OPT}
+           "${CMAKE_OPT[@]}"
            -DWITH_SSL=system -DWITH_ZLIB=system
   - make -j 4
   - cd mysql-test
