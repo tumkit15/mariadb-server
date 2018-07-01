@@ -221,6 +221,11 @@ IF(SECURITY_HARDENED)
   MY_CHECK_AND_SET_COMPILER_FLAG("-D_FORTIFY_SOURCE=2" RELEASE RELWITHDEBINFO)
 ENDIF()
 
+# CMake re-uses the compiler for linking programs which isn't
+# easily separated. As clang warns when using linking flags when compiling
+# and compile flags during linking this gets rather noisy.
+MY_CHECK_AND_SET_COMPILER_FLAG("-Wno-unused-command-line-argument")
+
 # Always enable debug sync for debug builds.
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
