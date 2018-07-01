@@ -25,15 +25,22 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   if [[ "${CXX}" == 'clang++' ]]; then
     case "${CC_VERSION}" in
       7*)
-        export CC=clang-7
-        export CXX=clang++-7
+        V=7
         ;;
       *)
-        export CC=clang-${CC_VERSION}.0
-        export CXX=clang++-${CC_VERSION}.0
+        V=${CC_VERSION}.0
         ;;
       *)
     esac
+    export CC=clang-${V}
+    export CXX=clang++-${V}
+    CMAKE_OPT="${CMAKE_OPT} -DCMAKE_AR=llvm-ar-${V} -DCMAKE_RANLIB=llvm-ranlib-${V}"
+    ld=lld-${V}
+    for lang in C CXX
+    do
+      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_CREATE_SHARED_LIBRARY=\"${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>\""
+      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_LINK_EXECUTABLE=\"${ld}  <FLAGS> <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>\""
+    done
   elif [[ "${CXX}" == 'g++' ]]; then
     export CXX=g++-${CC_VERSION}
     export CC=gcc-${CC_VERSION}
