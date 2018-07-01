@@ -183,7 +183,7 @@ script:
   - CMAKE_OPT+=(-DWITH_SSL=system -DWITH_ZLIB=system -DCMAKE_BUILD_TYPE=${TYPE})
   - echo "Building mariadb with ${CMAKE_OPT[@]}"
   - cmake "${TRAVIS_BUILD_DIR}" "${CMAKE_OPT[@]}"
-  - make -j 4
+  - make -j 4 VERBOSE=1
   - cd mysql-test
   - travis_wait 30 ./mtr --force --max-test-fail=20 --parallel=4 --testcase-timeout=${TEST_CASE_TIMEOUT}
          --suite=${MYSQL_TEST_SUITES}
