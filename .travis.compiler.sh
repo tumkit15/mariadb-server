@@ -35,8 +35,8 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     esac
     export CC=clang-${V}
     export CXX=clang++-${V}
-    CMAKE_OPT+=(-DCMAKE_AR=llvm-ar-${V} -DCMAKE_RANLIB=llvm-ranlib-${V})
-    ld=lld-${V}
+    CMAKE_OPT+=(-DCMAKE_AR=/usr/bin/llvm-ar-${V} -DCMAKE_RANLIB=/usr/bin/llvm-ranlib-${V})
+    ld=/usr/bin/lld-${V}
     for lang in C CXX
     do
       CMAKE_OPT+=(-DCMAKE_${lang}_CREATE_SHARED_LIBRARY="${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
@@ -47,8 +47,8 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
     export CC=gcc-${CC_VERSION}
     if [[ ${CC_VERSION} == 7 ]]; then
       V=2.26
-      CMAKE_OPT+=(-DCMAKE_AR=ar-${V} -DCMAKE_RANLIB=ranlib-${V})
-      ld=ld.gold-${V}
+      CMAKE_OPT+=(-DCMAKE_AR=/usr/bin/ar-${V} -DCMAKE_RANLIB=/usr/bin/ranlib-${V})
+      ld=/usr/bin/ld.gold-${V}
       for lang in C CXX
       do
         CMAKE_OPT+=(-DCMAKE_${lang}_CREATE_SHARED_LIBRARY="${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
