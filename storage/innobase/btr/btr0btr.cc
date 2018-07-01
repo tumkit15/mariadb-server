@@ -3294,7 +3294,7 @@ insert_failed:
 
 		n_iterations++;
 		ut_ad(n_iterations < 2
-		      || buf_block_get_page_zip(insert_block));
+		      || buf_block_page_is_zip(insert_block));
 		ut_ad(!insert_will_fit);
 
 		goto func_start;

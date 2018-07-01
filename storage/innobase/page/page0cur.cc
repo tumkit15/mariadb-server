@@ -1134,7 +1134,7 @@ page_cur_parse_insert_rec(
 	}
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
+	ut_ad(!buf_block_page_is_zip(block) || page_is_comp(page));
 
 	/* Read from the log the inserted index record end segment which
 	differs from the cursor record */
@@ -2258,7 +2258,7 @@ page_cur_parse_delete_rec(
 		rec_offs_init(offsets_);
 
 		page_cur_position(rec, block, &cursor);
-		ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
+		ut_ad(!buf_block_page_is_zip(block) || page_is_comp(page));
 
 		page_cur_delete_rec(&cursor, index,
 				    rec_get_offsets(rec, index, offsets_,

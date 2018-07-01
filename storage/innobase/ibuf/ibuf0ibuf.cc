@@ -1003,7 +1003,7 @@ ibuf_update_free_bits_low(
 	ulint	before;
 	ulint	after;
 
-	ut_a(!buf_block_get_page_zip(block));
+	ut_a(!buf_block_page_is_zip(block));
 	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	before = ibuf_index_page_calc_free_bits(block->page.size.logical(),
@@ -3871,7 +3871,7 @@ ibuf_insert_to_index_page_low(
 	been attempted by page_cur_tuple_insert(). Besides, per
 	ibuf_index_page_calc_free_zip() the page should not have been
 	recompressed or reorganized. */
-	ut_ad(!buf_block_get_page_zip(block));
+	ut_ad(!buf_block_page_is_zip(block));
 
 	/* If the record did not fit, reorganize */
 

@@ -1219,6 +1219,9 @@ if applicable. */
 #define buf_block_get_page_zip(block) \
 	((block)->page.zip.data ? &(block)->page.zip : NULL)
 
+#define buf_block_page_is_zip(block) \
+	((block)->page.zip.data != NULL)
+
 #ifdef BTR_CUR_HASH_ADAPT
 /** Get a buffer block from an adaptive hash index pointer.
 This function does not return if the block is not identified.
