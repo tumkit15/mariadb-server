@@ -115,6 +115,7 @@ addons:
       - llvm-toolchain-trusty-5.0
       - llvm-toolchain-trusty
     packages: # make sure these include all compilers and all build dependencies (see list above)
+      - binutils-2.26
       - gcc-5
       - g++-5
       - gcc-7

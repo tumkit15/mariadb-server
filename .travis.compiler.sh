@@ -44,6 +44,16 @@ if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then
   elif [[ "${CXX}" == 'g++' ]]; then
     export CXX=g++-${CC_VERSION}
     export CC=gcc-${CC_VERSION}
+    if [[ ${CC_VERSION} == 7 ]]; then
+      V=2.26
+      CMAKE_OPT="${CMAKE_OPT} -DCMAKE_AR=ar-${V} -DCMAKE_RANLIB=ranlib-${V}"
+      ld=ld.gold-${V}
+      for lang in C CXX
+      do
+        CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_CREATE_SHARED_LIBRARY=\"${ld} <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> <SONAME_FLAG><TARGET_SONAME> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>\""
+        CMAKE_OPT="${CMAKE_OPT} -DCMAKE_${lang}_LINK_EXECUTABLE=\"${ld}  <FLAGS> <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>\""
+      done
+    fi
   fi
   if [[ ${CC_VERSION} == 7 ]]; then
     wget http://mirrors.kernel.org/ubuntu/pool/universe/p/percona-xtradb-cluster-galera-2.x/percona-xtradb-cluster-galera-2.x_165-0ubuntu1_amd64.deb ;
