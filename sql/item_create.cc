@@ -7224,7 +7224,7 @@ static Native_func_registry func_array[] =
   { { STRING_WITH_LEN("IS_IPV6") }, BUILDER(Create_func_is_ipv6)},
   { { STRING_WITH_LEN("IS_IPV4_COMPAT") }, BUILDER(Create_func_is_ipv4_compat)},
   { { STRING_WITH_LEN("IS_IPV4_MAPPED") }, BUILDER(Create_func_is_ipv4_mapped)},
-  { {_STRING_WITH_LEN("IS_UUID") }, BUILDER(Create_func_is_uuid)},
+  { { STRING_WITH_LEN("IS_UUID") }, BUILDER(Create_func_is_uuid)},
   { { STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
   { { STRING_WITH_LEN("INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { STRING_WITH_LEN("INTERSECTS") }, GEOM_BUILDER(Create_func_mbr_intersects)},
