@@ -174,7 +174,7 @@ t3	CREATE TABLE `t3` (
   `bin_to_uuid(_tbl)` varchar(36) DEFAULT NULL,
   `bin_to_uuid(_ttx)` varchar(36) DEFAULT NULL,
   `bin_to_uuid(_blb)` varchar(36) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t3;
 # Compare with hex:
 DELETE FROM at;
@@ -185,8 +185,8 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `hex('c8eb4b15cb0948bb')` varchar(32) DEFAULT NULL,
   `hex(_bin)` varchar(32) DEFAULT NULL,
-  `hex(_blb)` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `hex(_blb)` mediumtext DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t3;
 # Output types of uuid_to_bin
 CREATE TABLE t3 AS SELECT
@@ -197,7 +197,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varbinary(16) DEFAULT NULL,
   `b` varbinary(16) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t3;
 # Compare with unhex:
 CREATE TABLE t3 AS SELECT unhex(_bin) FROM at;
@@ -205,7 +205,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `unhex(_bin)` varbinary(8) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t3;
 DROP TABLE at;
 # Bad arguments
@@ -255,20 +255,9 @@ INSERT into t1(col1) VALUES
 ('12345679123456781234567812345678'),
 ('12345670-1234-5678-1234-567812345678');
 EXPLAIN SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	gcol2	gcol2	17	const	1	100.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`gcol2` AS `gcol2` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	gcol2	gcol2	17	const	1	Using index condition
 SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
-col1	gcol2
-12345679123456781234567812345678	4Vy4Vx4Vx4Vx
-# Gcol expression is recognized and gcol index is used:
-EXPLAIN SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	gcol2	gcol2	17	const	1	100.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`gcol2` AS `gcol2` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
-SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
 col1	gcol2
 12345679123456781234567812345678	4Vy4Vx4Vx4Vx
 CREATE TABLE t2(col1 binary(16), gcol2 varchar(36) AS (bin_to_uuid(col1)) virtual, index(col1), index(gcol2));
@@ -277,27 +266,15 @@ INSERT into t2(col1) VALUES
 (x'12345679123456781234567812345678'),
 (x'12345670123456781234567812345678');
 EXPLAIN SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	col1	col1	17	const	1	100.00	Using index condition
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`col1` = 0x12345679123456781234567812345678)
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	col1	col1	17	const	1	Using index condition
 SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
 col1	gcol2
 4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
 EXPLAIN SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	gcol2	gcol2	39	const	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	gcol2	gcol2	39	const	1	Using index condition
 SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
-col1	gcol2
-4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
-EXPLAIN SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	gcol2	gcol2	39	const	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
-SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
 col1	gcol2
 4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
 DROP TABLE t1;
