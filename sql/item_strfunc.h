@@ -1193,34 +1193,50 @@ public:
 class Item_func_uuid_to_bin : public Item_str_func
 {
   /// Buffer to store the binary result
-  uchar m_bin_buf[binary_log::Uuid::BYTE_LENGTH];
+  uchar m_bin_buf[MY_UUID_SIZE];
 public:
-  Item_func_uuid_to_bin(const POS &pos, Item *arg1)
-    :Item_str_func(pos , arg1)
+  Item_func_uuid_to_bin(THD *thd, Item *arg1)
+    :Item_str_func(thd, arg1)
   {}
-  Item_func_uuid_to_bin(const POS &pos, Item *arg1, Item *arg2)
-    :Item_str_func(pos , arg1, arg2)
+  Item_func_uuid_to_bin(THD *thd, Item *arg1, Item *arg2)
+    :Item_str_func(thd, arg1, arg2)
   {}
   String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type_ref(THD *thd);
+  bool fix_length_and_dec()
+  {
+    collation.set(system_charset_info);
+    max_length= MY_UUID_SIZE;
+    maybe_null= 1;
+    return FALSE;
+  }
   const char *func_name() const { return "uuid_to_bin"; }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_uuid_to_bin>(thd, this); }
 };
 
 
 class Item_func_bin_to_uuid : public Item_str_ascii_func
 {
   /// Buffer to store the text result
-  char m_text_buf[binary_log::Uuid::TEXT_LENGTH + 1];
+  char m_text_buf[MY_UUID_STRING_LENGTH + 1];
 public:
-  Item_func_bin_to_uuid(const POS &pos, Item *arg1)
-    :Item_str_ascii_func(pos , arg1)
+  Item_func_bin_to_uuid(THD *thd, Item *arg1)
+    :Item_str_ascii_func(thd, arg1)
   {}
-  Item_func_bin_to_uuid(const POS &pos, Item *arg1, Item *arg2)
-    :Item_str_ascii_func(pos , arg1, arg2)
+  Item_func_bin_to_uuid(THD *thd, Item *arg1, Item *arg2)
+    :Item_str_ascii_func(thd, arg1, arg2)
   {}
   String *val_str_ascii(String *);
-  virtual bool resolve_type(THD *thd);
+  bool resolve_type_ref(THD *thd);
+  bool fix_length_and_dec()
+  {
+    fix_length_and_charset(MY_UUID_STRING_LENGTH, default_charset());
+    return FALSE;
+  }
   const char *func_name() const { return "bin_to_uuid"; }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_bin_to_uuid>(thd, this); }
 };
 
 
@@ -1228,15 +1244,11 @@ class Item_func_is_uuid : public Item_bool_func
 {
   typedef Item_bool_func super;
 public:
-    Item_func_is_uuid(const POS &pos, Item *a): Item_bool_func(pos, a) {}
-    longlong val_int();
-    const char *func_name() const { return "is_uuid"; }
-    bool resolve_type(THD *thd)
-    {
-      bool res= super::resolve_type(thd);
-      maybe_null= true;
-      return res;
-    }
+  Item_func_is_uuid(THD *thd, Item *a): Item_bool_func(thd, a) {}
+  longlong val_int();
+  const char *func_name() const { return "is_uuid"; }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_is_uuid>(thd, this); }
 };
 
 

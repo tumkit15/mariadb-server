@@ -3290,10 +3290,10 @@ String *Item_func_rpad::val_str(String *str)
 }
 
 
-bool Item_func_uuid_to_bin::resolve_type(THD *thd)
+bool Item_func_uuid_to_bin::resolve_type_ref(THD *thd)
 {
   collation.set(&my_charset_bin);
-  max_length= binary_log::Uuid::BYTE_LENGTH;
+  max_length= MY_UUID_SIZE;
   maybe_null= true;
   return false;
 }
@@ -3308,7 +3308,7 @@ String* Item_func_uuid_to_bin::val_str(String *str)
   if (!res || args[0]->null_value)
     return NULL;
 
-  if (binary_log::Uuid::parse(res->ptr(), res->length(), m_bin_buf))
+  if (my_uuid_parse(res->ptr(), res->length(), m_bin_buf))
     goto err;
 
   /*
@@ -3321,12 +3321,18 @@ String* Item_func_uuid_to_bin::val_str(String *str)
   */
   if (arg_count == 2 && args[1]->val_bool())
   {
-    std::swap_ranges(&m_bin_buf[4], &m_bin_buf[4] + 2, &m_bin_buf[6]);
-    std::swap_ranges(&m_bin_buf[0], &m_bin_buf[0] + 4, &m_bin_buf[4]);
+    // std::swap_ranges(&m_bin_buf[4], &m_bin_buf[4] + 2, &m_bin_buf[6]);
+    swap_variables(uchar, m_bin_buf[4], m_bin_buf[6]);
+    swap_variables(uchar, m_bin_buf[5], m_bin_buf[7]);
+    // std::swap_ranges(&m_bin_buf[0], &m_bin_buf[0] + 4, &m_bin_buf[4]);
+    swap_variables(uchar, m_bin_buf[0], m_bin_buf[4]);
+    swap_variables(uchar, m_bin_buf[1], m_bin_buf[5]);
+    swap_variables(uchar, m_bin_buf[2], m_bin_buf[6]);
+    swap_variables(uchar, m_bin_buf[3], m_bin_buf[7]);
   }
 
   null_value= false;
-  str->set(reinterpret_cast<char *>(m_bin_buf), binary_log::Uuid::BYTE_LENGTH,
+  str->set(reinterpret_cast<char *>(m_bin_buf), MY_UUID_SIZE,
             &my_charset_bin);
   return str;
 
@@ -3337,16 +3343,14 @@ err:
   return NULL;
 }
 
-
-bool Item_func_bin_to_uuid::resolve_type(THD *thd)
+bool Item_func_bin_to_uuid::resolve_type_ref(THD *thd)
 {
   decimals= 0;
   collation.set(default_charset());
-  fix_char_length(binary_log::Uuid::TEXT_LENGTH);
+  fix_char_length(MY_UUID_STRING_LENGTH);
   maybe_null= true;
   return false;
 }
-
 
 String *Item_func_bin_to_uuid::val_str_ascii(String *str)
 {
@@ -3357,7 +3361,7 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str)
   if (!res || args[0]->null_value)
     return NULL;
 
-  if (res->length() != binary_log::Uuid::BYTE_LENGTH)
+  if (res->length() != MY_UUID_SIZE)
     goto err;
 
   /*
@@ -3369,23 +3373,27 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str)
   */
   if (arg_count == 2 && args[1]->val_bool())
   {
-    uchar rearranged[binary_log::Uuid::BYTE_LENGTH];
+    uchar rearranged[MY_UUID_SIZE];
     // The first 4 bytes are restored to "time-low".
-    std::copy_n(&res->ptr()[4], 4, &rearranged[0]);
+    // std::copy_n(&res->ptr()[4], 4, &rearranged[0]);
+    memcpy(rearranged, res->ptr(), 4);
     // Bytes starting with 4th will be restored to "time-mid".
-    std::copy_n(&res->ptr()[2], 2, &rearranged[4]);
+    //std::copy_n(&res->ptr()[2], 2, &rearranged[4]);
+    memcpy(&rearranged[4], &res->ptr()[2], 2);
     // Bytes starting with 6th will be restored to "time-high".
-    std::copy_n(&res->ptr()[0], 2, &rearranged[6]);
+    // std::copy_n(&res->ptr()[0], 2, &rearranged[6]);
+    memcpy(&rearranged[6], &res->ptr()[0], 2);
     // The last 8 bytes were not changed so we just copy them.
-    std::copy_n(&res->ptr()[8], 8, &rearranged[8]);
-    binary_log::Uuid::to_string(rearranged, m_text_buf);
+    // std::copy_n(&res->ptr()[8], 8, &rearranged[8]);
+    memcpy(&rearranged[8], &res->ptr()[8], 8);
+    my_uuid2str(rearranged, m_text_buf);
   }
   else
-    binary_log::Uuid::to_string(reinterpret_cast<const uchar *>(res->ptr()),
+    my_uuid2str(reinterpret_cast<const uchar *>(res->ptr()),
                                 m_text_buf);
 
   null_value= false;
-  str->set(m_text_buf, binary_log::Uuid::TEXT_LENGTH, default_charset());
+  str->set(m_text_buf, MY_UUID_STRING_LENGTH, default_charset());
   return str;
 
 err:
@@ -3408,7 +3416,7 @@ longlong Item_func_is_uuid::val_int()
     return 0;
 
   null_value= false;
-  return binary_log::Uuid::is_valid(arg_str->ptr(), arg_str->length());
+  return my_uuid_is_valid(arg_str->ptr(), arg_str->length());
 }
 
 

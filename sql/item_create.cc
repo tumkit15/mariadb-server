@@ -2225,8 +2225,8 @@ public:
 class Create_func_uuid_to_bin : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list);
+  virtual Item* create_native(THD *thd, LEX_CSTRING *name,
+                              List<Item> *item_list);
   static Create_func_uuid_to_bin s_singleton;
 
 protected:
@@ -2237,7 +2237,7 @@ protected:
 class Create_func_is_uuid : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
   static Create_func_is_uuid s_singleton;
 
 protected:
@@ -2249,8 +2249,8 @@ protected:
 class Create_func_bin_to_uuid : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list);
+  virtual Item* create_native(THD *thd, LEX_CSTRING *name,
+                              List<Item> *item_list);
   static Create_func_bin_to_uuid s_singleton;
 
 protected:
@@ -5971,33 +5971,32 @@ Create_func_lpad::create_native_oracle(THD *thd, LEX_CSTRING *name,
 Create_func_uuid_to_bin Create_func_uuid_to_bin::s_singleton;
 
 Item*
-Create_func_uuid_to_bin::create_native(THD *thd, LEX_STRING name,
-                                       PT_item_list *item_list)
+Create_func_uuid_to_bin::create_native(THD *thd, LEX_CSTRING *name,
+                                       List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
 
   if (item_list != NULL)
-    arg_count= item_list->elements();
+    arg_count= item_list->elements;
 
-  POS pos;
   switch (arg_count) {
     case 1:
     {
-      Item *param_1= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_uuid_to_bin(pos, param_1);
+      Item *param_1= item_list->pop();
+      func= new (thd->mem_root) Item_func_uuid_to_bin(thd, param_1);
       break;
     }
     case 2:
     {
-      Item *param_1= item_list->pop_front();
-      Item *param_2= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_uuid_to_bin(pos, param_1, param_2);
+      Item *param_1= item_list->pop();
+      Item *param_2= item_list->pop();
+      func= new (thd->mem_root) Item_func_uuid_to_bin(thd, param_1, param_2);
       break;
     }
     default:
     {
-      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name->str);
       break;
     }
   }
@@ -6009,33 +6008,32 @@ Create_func_uuid_to_bin::create_native(THD *thd, LEX_STRING name,
 Create_func_bin_to_uuid Create_func_bin_to_uuid::s_singleton;
 
 Item*
-Create_func_bin_to_uuid::create_native(THD *thd, LEX_STRING name,
-                                       PT_item_list *item_list)
+Create_func_bin_to_uuid::create_native(THD *thd, LEX_CSTRING *name,
+                                       List<Item> *item_list)
 {
   Item *func= NULL;
   int arg_count= 0;
 
   if (item_list != NULL)
-    arg_count= item_list->elements();
+    arg_count= item_list->elements;
 
-  POS pos;
   switch (arg_count) {
     case 1:
     {
-      Item *param_1= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_bin_to_uuid(pos, param_1);
+      Item *param_1= item_list->pop();
+      func= new (thd->mem_root) Item_func_bin_to_uuid(thd, param_1);
       break;
     }
     case 2:
     {
-      Item *param_1= item_list->pop_front();
-      Item *param_2= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_bin_to_uuid(pos, param_1, param_2);
+      Item *param_1= item_list->pop();
+      Item *param_2= item_list->pop();
+      func= new (thd->mem_root) Item_func_bin_to_uuid(thd, param_1, param_2);
       break;
     }
     default:
     {
-      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name->str);
       break;
     }
   }
@@ -6047,9 +6045,9 @@ Create_func_bin_to_uuid::create_native(THD *thd, LEX_STRING name,
 Create_func_is_uuid Create_func_is_uuid::s_singleton;
 
 Item*
-Create_func_is_uuid::create(THD *thd, Item *arg1)
+Create_func_is_uuid::create_1_arg(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_is_uuid(POS(), arg1);
+  return new (thd->mem_root) Item_func_is_uuid(thd, arg1);
 }
 
 
