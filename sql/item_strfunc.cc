@@ -3290,15 +3290,6 @@ String *Item_func_rpad::val_str(String *str)
 }
 
 
-bool Item_func_uuid_to_bin::resolve_type_ref(THD *thd)
-{
-  collation.set(&my_charset_bin);
-  max_length= MY_UUID_SIZE;
-  maybe_null= true;
-  return false;
-}
-
-
 String* Item_func_uuid_to_bin::val_str(String *str)
 {
   DBUG_ASSERT(fixed && (arg_count == 1 || arg_count == 2));
@@ -3341,15 +3332,6 @@ err:
   my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
 
   return NULL;
-}
-
-bool Item_func_bin_to_uuid::resolve_type_ref(THD *thd)
-{
-  decimals= 0;
-  collation.set(default_charset());
-  fix_char_length(MY_UUID_STRING_LENGTH);
-  maybe_null= true;
-  return false;
 }
 
 String *Item_func_bin_to_uuid::val_str_ascii(String *str)

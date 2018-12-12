@@ -1202,10 +1202,9 @@ public:
     :Item_str_func(thd, arg1, arg2)
   {}
   String *val_str(String *);
-  bool resolve_type_ref(THD *thd);
   bool fix_length_and_dec()
   {
-    collation.set(system_charset_info);
+    collation.set(&my_charset_bin);
     max_length= MY_UUID_SIZE;
     maybe_null= 1;
     return FALSE;
@@ -1228,10 +1227,11 @@ public:
     :Item_str_ascii_func(thd, arg1, arg2)
   {}
   String *val_str_ascii(String *);
-  bool resolve_type_ref(THD *thd);
   bool fix_length_and_dec()
   {
+    decimals= 0;
     fix_length_and_charset(MY_UUID_STRING_LENGTH, default_charset());
+    maybe_null= true;
     return FALSE;
   }
   const char *func_name() const { return "bin_to_uuid"; }
