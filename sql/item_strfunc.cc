@@ -3358,7 +3358,7 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str)
     uchar rearranged[MY_UUID_SIZE];
     // The first 4 bytes are restored to "time-low".
     // std::copy_n(&res->ptr()[4], 4, &rearranged[0]);
-    memcpy(rearranged, res->ptr(), 4);
+    memcpy(rearranged, &res->ptr()[4], 4);
     // Bytes starting with 4th will be restored to "time-mid".
     //std::copy_n(&res->ptr()[2], 2, &rearranged[4]);
     memcpy(&rearranged[4], &res->ptr()[2], 2);
