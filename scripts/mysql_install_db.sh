@@ -342,6 +342,14 @@ then
     exit 1
   fi
   plugindir=`find_in_dirs --dir auth_socket.so $basedir/lib*/plugin $basedir/lib*/mysql/plugin`
+# relative from where the script was run for a relocatable install
+elif test -x "$(dirname $0)/../@INSTALL_SBINDIR@/mysqld"
+then
+  basedir="$(dirname $0)/../"
+  bindir="$basedir/@INSTALL_SBINDIR@"
+  resolveip="$bindir/resolveip"
+  mysqld="$basedir/@INSTALL_SBINDIR@/mysqld"
+  plugindir="$basedir/@INSTALL_PLUGINDIR@"
 else
   basedir="@prefix@"
   bindir="@bindir@"
