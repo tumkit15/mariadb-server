@@ -34,6 +34,8 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 #define OS_MAP_ANON	MAP_ANON
 #endif
 
+#include "my_bit.h"
+
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large(). */
 Atomic_counter<ulint>	os_total_large_mem_allocated;
@@ -67,35 +69,45 @@ os_mem_alloc_large(
 	void*	ptr;
 	ulint	size;
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-	int shmid;
+	int shmid, shmflag;
 	struct shmid_ds buf;
+	int i;
+	ulong large_page_size;
 
-	if (!os_use_large_pages || !os_large_page_size) {
+	if (!os_use_large_pages) {
 		goto skip;
 	}
 
-	/* Align block size to os_large_page_size */
-	ut_ad(ut_is_2pow(os_large_page_size));
-	size = ut_2pow_round(*n + (os_large_page_size - 1),
-			     os_large_page_size);
+	/* SHM_HUGE_SHIFT added linux-3.8. Take largest HUGEPAGE size */
+	for (i=0; i < my_large_page_sizes_length && my_large_page_sizes[i] > *n; i++);
 
-	shmid = shmget(IPC_PRIVATE, (size_t) size, SHM_HUGETLB | SHM_R | SHM_W);
-	if (shmid < 0) {
-		ib::warn() << "Failed to allocate " << size
-			<< " bytes. errno " << errno;
-		ptr = NULL;
-	} else {
-		ptr = shmat(shmid, NULL, 0);
-		if (ptr == (void*)-1) {
-			ib::warn() << "Failed to attach shared memory segment,"
-				" errno " << errno;
+	while (i < my_large_page_sizes_length && my_large_page_sizes[i] <= *n && my_large_page_sizes[i] > 0) {
+		large_page_size = my_large_page_sizes[i];
+		shmflag = SHM_R | SHM_W | my_bit_log2(large_page_size) << 26;
+		size = ut_2pow_round(*n + (large_page_size - 1),
+				large_page_size);
+
+		shmid = shmget(IPC_PRIVATE, (size_t) size, shmflag);
+		if (shmid < 0) {
+			ib::warn() << "Failed to allocate " << size
+				<< " bytes, on large page size " << large_page_size
+				<< " bytes. errno " << errno;
 			ptr = NULL;
-		}
+		} else {
+			ptr = shmat(shmid, NULL, 0);
+			if (ptr == (void*)-1) {
+				ib::warn() << "Failed to attach shared memory segment,"
+					" errno " << errno;
+				ptr = NULL;
+			}
 
-		/* Remove the shared memory segment so that it will be
-		automatically freed after memory is detached or
-		process exits */
-		shmctl(shmid, IPC_RMID, &buf);
+			/* Remove the shared memory segment so that it will be
+			automatically freed after memory is detached or
+			process exits */
+			shmctl(shmid, IPC_RMID, &buf);
+			break;
+		}
+		i++;
 	}
 
 	if (ptr) {
