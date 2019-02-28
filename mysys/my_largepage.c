@@ -25,9 +25,21 @@
 #include <sys/shm.h>
 #endif
 
+#include <dirent.h>
+
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
 static my_bool my_large_free_int(uchar* ptr);
+
+/* Decending sort - knowing these have been *1024 so reduce overflow */
+static int long_cmp(const void *a, const void *b)
+{
+    const long *ia = (const long *)a; // casting pointer types
+    const long *ib = (const long *)b;
+    return (int) ( ( *ib / 1024L ) - ( *ia / 1024L) );
+	/* integer comparison: returns negative if a > b, therefore the bigger a goes first,
+	and positive if b > a */
+}
 
 /* Gets the size of large pages from the OS */
 
@@ -42,6 +54,35 @@ uint my_get_large_page_size(void)
   DBUG_RETURN(size);
 }
 
+void my_get_large_page_sizes(ulong sizes[my_large_page_sizes_length])
+{
+  DIR *dirp;
+  struct dirent *r;
+  int i= 0;
+  DBUG_ENTER("my_get_large_page_sizes");
+
+  dirp= opendir("/sys/kernel/mm/hugepages");
+  if (dirp == NULL)
+  {
+    fprintf(stderr,
+            "Warning: failed to open /sys/kernel/mm/hugepages."
+            " errno %d\n", errno);
+  }
+  else
+  {
+    while (i < my_large_page_sizes_length &&
+          (r= readdir(dirp)))
+    {
+      if (strncmp("hugepages-", r->d_name, 10) == 0)
+      {
+        sizes[i]= atol(r->d_name + 10) * 1024L;
+        ++i;
+      }
+    }
+    qsort(sizes, i, sizeof(ulong), long_cmp);
+  }
+  DBUG_VOID_RETURN;
+}
 /*
   General large pages allocator.
   Tries to allocate memory from large pages pool and falls back to
