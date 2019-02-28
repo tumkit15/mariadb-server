@@ -179,10 +179,13 @@ extern char *my_strndup(const char *from, size_t length, myf MyFlags);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern uint my_get_large_page_size(void);
+extern void my_get_large_page_sizes(size_t sizes[]);
+uint my_next_large_page_size(uint sz, int *start);
 extern uchar * my_large_malloc(size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
 #else
 #define my_get_large_page_size() (0)
+#define my_get_large_page_sizes() (0)
 #define my_large_malloc(A,B) my_malloc_lock((A),(B))
 #define my_large_free(A) my_free_lock((A))
 #endif /* HAVE_LINUX_LARGE_PAGES */
@@ -246,6 +249,8 @@ extern void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern my_bool my_use_large_pages;
 extern uint    my_large_page_size;
+#define my_large_page_sizes_length 8
+extern ulong   my_large_page_sizes[my_large_page_sizes_length];
 #endif
 
 /* charsets */
