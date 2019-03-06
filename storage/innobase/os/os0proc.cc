@@ -36,6 +36,14 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 
 #include "my_bit.h"
 
+#ifdef UNIV_LINUX
+#include <sys/shm.h>
+#include <sys/ipc.h>
+#ifndef SHM_HUGE_SHIFT
+#define SHM_HUGE_SHIFT 26
+#endif
+#endif
+
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large(). */
 Atomic_counter<ulint>	os_total_large_mem_allocated;
@@ -80,7 +88,7 @@ os_mem_alloc_large(
 
 	/* SHM_HUGE_SHIFT added linux-3.8. Take largest HUGEPAGE size */
 	while ((large_page_size = my_next_large_page_size(*n, &i))) {
-		shmflag = SHM_R | SHM_W | my_bit_log2(large_page_size) << 26;
+		shmflag = SHM_R | SHM_W | SHM_HUGETLB | my_bit_log2(large_page_size) << SHM_HUGE_SHIFT;
 		size = ut_2pow_round(*n + (large_page_size - 1),
 				large_page_size);
 
