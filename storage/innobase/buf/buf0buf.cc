@@ -1806,20 +1806,14 @@ static void buf_block_free_mutexes(buf_block_t* block)
 @param[in]      buf_pool_size   the size of the remaining buffer pool
 @param[in,out]	large_page_i	offset in the my_large_page_sizes array
 @return next chunk size */
-static ulint next_large_page(ulint buf_pool_size, uint *large_page_i)
+static ulint next_large_page(ulint buf_pool_size, int *large_page_i)
 {
 #ifdef HAVE_LINUX_LARGE_PAGES
 	if (os_use_large_pages) {
-		while (*large_page_i < my_large_page_sizes_length &&
-			srv_buf_pool_chunk_unit < my_large_page_sizes[*large_page_i]) {
-			if (my_large_page_sizes[*large_page_i] <= buf_pool_size) {
-				/* Increase chunks size to largest page available on system */
-				return my_large_page_sizes[*large_page_i];
-				break;
-			} else {
-				(*large_page_i)++;
-			}
-		}
+		uint sz;
+		sz= my_next_large_page_size(buf_pool_size, large_page_i);
+		if (sz > srv_buf_pool_chunk_unit)
+			return sz;
 	}
 #endif
 	return srv_buf_pool_chunk_unit;
@@ -1842,7 +1836,7 @@ buf_pool_init_instance(
 	ulint		chunk_size;
 	buf_chunk_t*	chunk;
 #ifdef HAVE_LINUX_LARGE_PAGES
-	uint		large_page_i = 0;
+	int		large_page_i = 0;
 #endif
 
 	ut_ad(buf_pool_size % srv_buf_pool_chunk_unit == 0);
@@ -1912,7 +1906,7 @@ buf_pool_init_instance(
 			buf_pool->curr_size += chunk->size;
                         buf_pool_size -= chunk->mem_size();
 #ifdef HAVE_LINUX_LARGE_PAGES
-			if (chunk_size > buf_pool_size) {
+			if (chunk_size > buf_pool_size && buf_pool_size > 0) {
 				/* time to downsize */
 				chunk_size = next_large_page(buf_pool_size, &large_page_i);
 			}

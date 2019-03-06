@@ -66,12 +66,12 @@ void*
 os_mem_alloc_large(
 	ulint*	n)
 {
-	void*	ptr;
+	void*	ptr = NULL;
 	ulint	size;
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
 	int shmid, shmflag;
 	struct shmid_ds buf;
-	int i;
+	int i = 0;
 	ulong large_page_size;
 
 	if (!os_use_large_pages) {
@@ -79,10 +79,7 @@ os_mem_alloc_large(
 	}
 
 	/* SHM_HUGE_SHIFT added linux-3.8. Take largest HUGEPAGE size */
-	for (i=0; i < my_large_page_sizes_length && my_large_page_sizes[i] > *n; i++);
-
-	while (i < my_large_page_sizes_length && my_large_page_sizes[i] <= *n && my_large_page_sizes[i] > 0) {
-		large_page_size = my_large_page_sizes[i];
+	while ((large_page_size = my_next_large_page_size(*n, &i))) {
 		shmflag = SHM_R | SHM_W | my_bit_log2(large_page_size) << 26;
 		size = ut_2pow_round(*n + (large_page_size - 1),
 				large_page_size);
@@ -107,7 +104,6 @@ os_mem_alloc_large(
 			shmctl(shmid, IPC_RMID, &buf);
 			break;
 		}
-		i++;
 	}
 
 	if (ptr) {
@@ -170,7 +166,7 @@ os_mem_free_large(
 	ut_a(os_total_large_mem_allocated >= size);
 
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
+	if (os_use_large_pages && !shmdt(ptr)) {
 		os_total_large_mem_allocated -= size;
 		return;
 	}
