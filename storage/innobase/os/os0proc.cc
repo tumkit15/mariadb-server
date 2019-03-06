@@ -36,14 +36,6 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 
 #include "my_bit.h"
 
-#ifdef UNIV_LINUX
-#include <sys/shm.h>
-#include <sys/ipc.h>
-#ifndef SHM_HUGE_SHIFT
-#define SHM_HUGE_SHIFT 26
-#endif
-#endif
-
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large(). */
 Atomic_counter<ulint>	os_total_large_mem_allocated;
@@ -77,8 +69,7 @@ os_mem_alloc_large(
 	void*	ptr = NULL;
 	ulint	size;
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-	int shmid, shmflag;
-	struct shmid_ds buf;
+	int     mapflag;
 	int i = 0;
 	ulong large_page_size;
 
@@ -88,28 +79,20 @@ os_mem_alloc_large(
 
 	/* SHM_HUGE_SHIFT added linux-3.8. Take largest HUGEPAGE size */
 	while ((large_page_size = my_next_large_page_size(*n, &i))) {
-		shmflag = SHM_R | SHM_W | SHM_HUGETLB | my_bit_log2(large_page_size) << SHM_HUGE_SHIFT;
+		mapflag = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | my_bit_log2(large_page_size) << MAP_HUGE_SHIFT;
+		/* the rounding is unnecessary for the mmap call, but preserves size for accounting */
 		size = ut_2pow_round(*n + (large_page_size - 1),
 				large_page_size);
 
-		shmid = shmget(IPC_PRIVATE, (size_t) size, shmflag);
-		if (shmid < 0) {
-			ib::warn() << "Failed to allocate " << size
-				<< " bytes, on large page size " << large_page_size
-				<< " bytes. errno " << errno;
-			ptr = NULL;
-		} else {
-			ptr = shmat(shmid, NULL, 0);
-			if (ptr == (void*)-1) {
-				ib::warn() << "Failed to attach shared memory segment,"
-					" errno " << errno;
-				ptr = NULL;
+		ptr = mmap(NULL, (size_t) size, PROT_READ | PROT_WRITE, mapflag, -1, 0);
+		if (ptr == (void*)-1) {
+			if (errno == ENOMEM) {
+				/* no memory at this size, try next size */
+				continue;
 			}
-
-			/* Remove the shared memory segment so that it will be
-			automatically freed after memory is detached or
-			process exits */
-			shmctl(shmid, IPC_RMID, &buf);
+			ib::warn() << "Failed to attach HugeTLB memory segment (page size: "
+				<< large_page_size << "), errno " << errno;
+		} else {
 			break;
 		}
 	}
@@ -173,12 +156,6 @@ os_mem_free_large(
 {
 	ut_a(os_total_large_mem_allocated >= size);
 
-#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-	if (os_use_large_pages && !shmdt(ptr)) {
-		os_total_large_mem_allocated -= size;
-		return;
-	}
-#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 #ifdef _WIN32
 	/* When RELEASE memory, the size parameter must be 0.
 	Do not use MEM_RELEASE with MEM_DECOMMIT. */
@@ -202,4 +179,11 @@ os_mem_free_large(
 		os_total_large_mem_allocated -= size;
 	}
 #endif
+#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
+	if (os_use_large_pages) {
+		/* note accounting will be off if we fell though to
+		conventional memory on allocation */
+		os_total_large_mem_allocated -= size;
+	}
+#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 }
