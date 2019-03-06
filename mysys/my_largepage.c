@@ -54,6 +54,33 @@ uint my_get_large_page_size(void)
   DBUG_RETURN(size);
 }
 
+/* Returns the next large page size smaller than passed in size.
+
+ The search starts at my_large_page_size[*start]
+
+ Returns the next size found. *start will be incremented to the next
+ index within the array afterwards (potentially out of bounds).
+
+ Returns 0 if no size possible.
+*/
+uint my_next_large_page_size(uint sz, int *start)
+{
+  int cur;
+  DBUG_ENTER("my_next_large_page_size");
+ 
+  while (*start < my_large_page_sizes_length
+         && my_large_page_sizes[*start] > 0)
+  {
+    cur= *start;
+    (*start)++;
+    if (my_large_page_sizes[cur] <= sz)
+    {
+      DBUG_RETURN(my_large_page_sizes[cur]);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
 void my_get_large_page_sizes(ulong sizes[my_large_page_sizes_length])
 {
   DIR *dirp;
@@ -83,6 +110,9 @@ void my_get_large_page_sizes(ulong sizes[my_large_page_sizes_length])
   }
   DBUG_VOID_RETURN;
 }
+
+
+
 /*
   General large pages allocator.
   Tries to allocate memory from large pages pool and falls back to
