@@ -27,6 +27,12 @@
 
 #include <dirent.h>
 
+#include "my_bit.h"
+
+#ifndef SHM_HUGE_SHIFT
+#define SHM_HUGE_SHIFT 26
+#endif
+
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
 static my_bool my_large_free_int(uchar* ptr);
@@ -189,19 +195,39 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   int shmid;
   uchar* ptr;
   struct shmid_ds buf;
+  size_t large_page_size, adjusted_size;
+  int page_i;
   DBUG_ENTER("my_large_malloc_int");
+  page_i = 0;
 
-  /* Align block size to my_large_page_size */
-  size= MY_ALIGN(size, (size_t) my_large_page_size);
-  
-  shmid = shmget(IPC_PRIVATE, size, SHM_HUGETLB | SHM_R | SHM_W);
-  if (shmid < 0)
+  while ((large_page_size= my_next_large_page_size(size, &page_i)))
+  {
+    /* Align block size to large_page_size */
+    adjusted_size= MY_ALIGN(size, (size_t) large_page_size);
+
+    shmid = shmget(IPC_PRIVATE, adjusted_size, SHM_HUGETLB |
+                   my_bit_log2(adjusted_size) << SHM_HUGE_SHIFT |
+                   SHM_R | SHM_W);
+    if (shmid < 0)
+    {
+      /* try next smaller memory size */
+      if (errno == ENOMEM)
+        continue;
+
+      if (my_flags & MY_WME)
+        fprintf(stderr,
+                "Warning: Failed to allocate %lu bytes from HugeTLB memory (size %lu)."
+                " errno %d\n", (ulong) adjusted_size, (ulong) large_page_size, errno);
+
+      DBUG_RETURN(NULL);
+    }
+  }
+
+  if (!large_page_size)
   {
     if (my_flags & MY_WME)
-      fprintf(stderr,
-              "Warning: Failed to allocate %lu bytes from HugeTLB memory."
-              " errno %d\n", (ulong) size, errno);
-
+      fprintf(stderr, "Warning: Failed to allocate %lu bytes from HugeTLB memory,"
+              " no large pages with sufficent memory\n", (ulong) size);
     DBUG_RETURN(NULL);
   }
 
