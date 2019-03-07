@@ -162,6 +162,7 @@ typedef struct st_simple_key_cache_cb
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   size_t key_cache_mem_size;     /* specified size of the cache memory       */
+  size_t allocated_mem_size;     /* size of the memory actually allocated    */
   uint key_cache_block_size;     /* size of the page buffer of a cache block */
   ulong min_warm_blocks;         /* min number of warm blocks;               */
   ulong age_threshold;           /* age threshold for hot blocks             */
@@ -546,9 +547,19 @@ int init_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
              ((size_t) blocks * keycache->key_cache_block_size) > use_mem && blocks > 8)
         blocks--;
       /* Allocate memory for cache page buffers */
-      if ((keycache->block_mem=
-	   my_large_malloc((size_t) blocks * keycache->key_cache_block_size,
-			  MYF(0))))
+#ifdef HAVE_LINUX_LARGE_PAGES
+      /* Large pages, dropping the size down fails to catch when key_cache_size
+         is the same as the large page size. */
+      if (my_use_large_pages)
+      {
+        keycache->allocated_mem_size= use_mem;
+      }
+      else
+#endif
+      {
+        keycache->allocated_mem_size= blocks * keycache->key_cache_block_size;
+      }
+      if ((keycache->block_mem=my_large_malloc(keycache->allocated_mem_size, MYF(0))))
       {
         /*
 	  Allocate memory for blocks, hash_links and hash entries;
