@@ -546,9 +546,18 @@ int init_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
              ((size_t) blocks * keycache->key_cache_block_size) > use_mem && blocks > 8)
         blocks--;
       /* Allocate memory for cache page buffers */
-      if ((keycache->block_mem=
-	   my_large_malloc((size_t) blocks * keycache->key_cache_block_size,
-			  MYF(0))))
+#ifdef HAVE_LINUX_LARGE_PAGES
+      /* Large pages, dropping the size down fails to catch when key_cache_size
+         is the same as the large page size. */
+      if (my_use_large_pages && (keycache->block_mem=my_large_malloc(use_mem, MYF(0))))
+      {
+      }
+      else
+#endif
+      {
+          keycache->block_mem= my_large_malloc((size_t) blocks * keycache->key_cache_block_size, MYF(0));
+      }
+      if (keycache->block_mem)
       {
         /*
 	  Allocate memory for blocks, hash_links and hash entries;
