@@ -33,7 +33,6 @@
 #define SHM_HUGE_SHIFT 26
 #endif
 
-static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
 static my_bool my_large_free_int(uchar* ptr);
 
@@ -45,17 +44,6 @@ static int long_cmp(const void *a, const void *b)
     return (int) ( ( *ib / 1024L ) - ( *ia / 1024L) );
 	/* integer comparison: returns negative if a > b, therefore the bigger a goes first,
 	and positive if b > a */
-}
-
-uint my_get_large_page_size(void)
-{
-  uint size;
-  DBUG_ENTER("my_get_large_page_size");
-  
-  if (!(size = my_get_large_page_size_int()))
-    fprintf(stderr, "Warning: Failed to determine large page size\n");
-
-  DBUG_RETURN(size);
 }
 
 /* Returns the next large page size smaller than passed in size.
