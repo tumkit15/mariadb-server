@@ -1285,12 +1285,6 @@ static Sys_var_mybool Sys_large_files_support(
        READ_ONLY GLOBAL_VAR(opt_large_files),
        CMD_LINE_HELP_ONLY, DEFAULT(sizeof(my_off_t) > 4));
 
-static Sys_var_uint Sys_large_page_size(
-       "large_page_size",
-       "If large page support is enabled, this shows the size of memory pages",
-       READ_ONLY GLOBAL_VAR(opt_large_page_size), NO_CMD_LINE,
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
-
 static Sys_var_mybool Sys_large_pages(
        "large_pages", "Enable support for large pages",
        READ_ONLY GLOBAL_VAR(opt_large_pages),
