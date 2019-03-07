@@ -214,10 +214,13 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
         continue;
 
       if (my_flags & MY_WME)
+      {
         fprintf(stderr,
                 "Warning: Failed to allocate %lu bytes from HugeTLB memory (page size %lu)."
                 " errno %d\n", (ulong) adjusted_size, (ulong) large_page_size, errno);
-
+        if (errno == 22) /* EINVAL */
+          fprintf(stderr, "Warning: your allocation has exceeded sysctl kernel.shmall or kernel.shmmax\n");
+      }
       DBUG_RETURN(NULL);
     }
   }
