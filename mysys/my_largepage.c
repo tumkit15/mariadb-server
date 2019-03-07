@@ -29,12 +29,8 @@
 
 #include "my_bit.h"
 
-#ifndef SHM_HUGE_SHIFT
-#define SHM_HUGE_SHIFT 26
-#endif
-
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
-static my_bool my_large_free_int(uchar* ptr);
+static my_bool my_large_free_int(uchar* ptr, size_t size);
 
 /* Decending sort - knowing these have been *1024 so reduce overflow */
 static int long_cmp(const void *a, const void *b)
@@ -131,7 +127,7 @@ uchar* my_large_malloc(size_t size, myf my_flags)
   to my_free_lock() in case of failure
  */
 
-void my_large_free(uchar* ptr)
+void my_large_free(uchar* ptr, size_t size)
 {
   DBUG_ENTER("my_large_free");
   
@@ -140,7 +136,7 @@ void my_large_free(uchar* ptr)
     my_large_malloc_int(), i.e. my_malloc_lock() was used so we should free it
     with my_free_lock()
   */
-  if (!my_use_large_pages || !my_large_free_int(ptr))
+  if (!my_use_large_pages || my_large_free_int(ptr, size))
     my_free_lock(ptr);
 
   DBUG_VOID_RETURN;
@@ -176,27 +172,20 @@ finish:
     
 uchar* my_large_malloc_int(size_t size, myf my_flags)
 {
-  int shmid;
   uchar* ptr;
-  struct shmid_ds buf;
-  size_t large_page_size, adjusted_size;
-  int page_i;
+  size_t large_page_size;
+  int page_i, mapflag;
   DBUG_ENTER("my_large_malloc_int");
   page_i = 0;
 
   while ((large_page_size= my_next_large_page_size(size, &page_i)))
   {
-    /* Align block size to large_page_size */
-    adjusted_size= MY_ALIGN(size, (size_t) large_page_size);
-
-    shmid = shmget(IPC_PRIVATE, adjusted_size, SHM_HUGETLB |
-                   my_bit_log2(large_page_size) << SHM_HUGE_SHIFT |
-                   SHM_R | SHM_W);
-    if (shmid >= 0)
+    mapflag = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | my_bit_log2(large_page_size) << MAP_HUGE_SHIFT;
+    /* mmap adjusts the size to the hugetlb page size so no adjustment is needed */
+    ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, mapflag, -1, 0);
+    if (ptr == (void*) -1)
     {
-      break;
-    }
-    {
+      ptr = NULL;
       /* try next smaller memory size */
       if (errno == ENOMEM)
         continue;
@@ -204,49 +193,43 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
       if (my_flags & MY_WME)
       {
         fprintf(stderr,
-                "Warning: Failed to allocate %lu bytes from HugeTLB memory (page size %lu)."
-                " errno %d\n", (ulong) adjusted_size, (ulong) large_page_size, errno);
+                "Warning: Failed to allocate %zd bytes from HugeTLB memory (page size %zd)."
+                " errno %d\n", size, large_page_size, errno);
         if (errno == 22) /* EINVAL */
           fprintf(stderr, "Warning: your allocation has exceeded sysctl kernel.shmall or kernel.shmmax\n");
       }
       DBUG_RETURN(NULL);
+    }
+    else
+    {
+      DBUG_RETURN(ptr);
     }
   }
 
   if (!large_page_size)
   {
     if (my_flags & MY_WME)
-      fprintf(stderr, "Warning: Failed to allocate %lu bytes from HugeTLB memory,"
-              " no large pages with sufficent memory\n", (ulong) size);
-    DBUG_RETURN(NULL);
+      fprintf(stderr, "Warning: Failed to allocate %zd bytes from HugeTLB memory,"
+              " no large pages with sufficent memory\n", size);
   }
+  DBUG_RETURN(NULL);
 
-  ptr = (uchar*) shmat(shmid, NULL, 0);
-  if (ptr == (uchar *) -1)
-  {
-    if (my_flags& MY_WME)
-      fprintf(stderr, "Warning: Failed to attach shared memory segment,"
-              " errno %d\n", errno);
-    shmctl(shmid, IPC_RMID, &buf);
-
-    DBUG_RETURN(NULL);
-  }
-
-  /*
-    Remove the shared memory segment so that it will be automatically freed
-    after memory is detached or process exits
-  */
-  shmctl(shmid, IPC_RMID, &buf);
-
-  DBUG_RETURN(ptr);
 }
 
 /* Linux-specific large pages deallocator */
 
-my_bool my_large_free_int(uchar *ptr)
+my_bool my_large_free_int(uchar *ptr, size_t size)
 {
   DBUG_ENTER("my_large_free_int");
-  DBUG_RETURN(shmdt(ptr) == 0);
+  if (munmap(ptr, size))
+  {
+    if (errno != EINVAL || 1)
+    {
+      fprintf(stderr, "Warning: Failed to unmap %zd bytes from HugeTLB memory, errno %d\n", size, errno);
+    }
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }
 #endif /* HAVE_DECL_SHM_HUGETLB */
 
