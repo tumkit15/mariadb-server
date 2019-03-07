@@ -1911,7 +1911,6 @@ static bool innodb_init_param()
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 
 	os_use_large_pages = (ibool) innobase_use_large_pages;
-	os_large_page_size = (ulint) innobase_large_page_size;
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
 
 	srv_file_per_table = (my_bool) innobase_file_per_table;

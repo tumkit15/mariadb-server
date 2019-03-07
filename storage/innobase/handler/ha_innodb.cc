@@ -4028,9 +4028,7 @@ static int innodb_init_params()
 		NULL, innodb_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
-	if ((os_use_large_pages = my_use_large_pages)) {
-		os_large_page_size = opt_large_page_size;
-	}
+	os_use_large_pages = my_use_large_pages;
 #endif
 
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;

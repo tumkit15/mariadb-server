@@ -1603,7 +1603,9 @@ buf_chunk_init(
 	chunk->blocks = (buf_block_t*) chunk->mem;
 
 	/* Align a pointer to the first frame.  Note that when
-	os_large_page_size is smaller than srv_page_size,
+	large_page_size is smaller than srv_page_size,
+        (with max srv_page_size at 64k don't think any hardware
+        makes this true),
 	we may allocate one fewer block than requested.  When
 	it is bigger, we may allocate more blocks than requested. */
 
