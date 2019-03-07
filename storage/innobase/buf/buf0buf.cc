@@ -2049,7 +2049,7 @@ buf_pool_free_instance(
 		}
 
 		buf_pool->allocator.deallocate_large(
-			chunk->mem, &chunk->mem_pfx, true);
+			chunk->mem, &chunk->mem_pfx, chunk->mem_size(), true);
 	}
 
 	for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
