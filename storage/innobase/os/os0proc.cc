@@ -34,14 +34,12 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 #define OS_MAP_ANON	MAP_ANON
 #endif
 
+#include <my_sys.h> /* for my_use_large_pages */
 #include "my_bit.h"
 
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large(). */
 Atomic_counter<ulint>	os_total_large_mem_allocated;
-
-/** Whether to use large pages in the buffer pool */
-my_bool	os_use_large_pages;
 
 /** Converts the current process id to a number.
 @return process id as a number */
@@ -70,7 +68,7 @@ os_mem_alloc_large(
 	int i = 0;
 	size_t large_page_size, adjusted_size;
 
-	if (!os_use_large_pages) {
+	if (!my_use_large_pages) {
 		goto skip;
 	}
 
@@ -179,7 +177,7 @@ os_mem_free_large(
 	}
 #endif
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-	if (os_use_large_pages) {
+	if (my_use_large_pages) {
 		/* note accounting will be off if we fell though to
 		conventional memory on allocation */
 		os_total_large_mem_allocated -= size;
