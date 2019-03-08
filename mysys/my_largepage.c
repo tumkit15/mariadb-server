@@ -28,9 +28,10 @@
 #include <dirent.h>
 
 #include "my_bit.h"
+#define my_2pow_round(n, m) ((n) & ~((m) - 1))
 
-static uchar* my_large_malloc_int(size_t size, myf my_flags);
-static my_bool my_large_free_int(uchar* ptr, size_t size);
+static uchar* my_large_malloc_int(size_t *size, myf my_flags);
+static my_bool my_large_free_int(void* ptr, size_t size);
 
 /* Decending sort - knowing these have been *1024 so reduce overflow */
 static int long_cmp(const void *a, const void *b)
@@ -105,7 +106,7 @@ void my_get_large_page_sizes(size_t sizes[my_large_page_sizes_length])
   my_malloc_lock() in case of failure
 */
 
-uchar* my_large_malloc(size_t size, myf my_flags)
+uchar* my_large_malloc(size_t *size, myf my_flags)
 {
   uchar* ptr;
   DBUG_ENTER("my_large_malloc");
@@ -118,7 +119,7 @@ uchar* my_large_malloc(size_t size, myf my_flags)
       fprintf(stderr, "Warning: Using conventional memory pool\n");
   }
       
-  DBUG_RETURN(my_malloc_lock(size, my_flags));
+  DBUG_RETURN(my_malloc_lock(*size, my_flags));
 }
 
 /*
@@ -127,7 +128,7 @@ uchar* my_large_malloc(size_t size, myf my_flags)
   to my_free_lock() in case of failure
  */
 
-void my_large_free(uchar* ptr, size_t size)
+void my_large_free(void* ptr, size_t size)
 {
   DBUG_ENTER("my_large_free");
   
@@ -170,7 +171,7 @@ finish:
 #if HAVE_DECL_SHM_HUGETLB
 /* Linux-specific large pages allocator  */
     
-uchar* my_large_malloc_int(size_t size, myf my_flags)
+uchar* my_large_malloc_int(size_t *size, myf my_flags)
 {
   uchar* ptr;
   size_t large_page_size;
@@ -178,11 +179,11 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   DBUG_ENTER("my_large_malloc_int");
   page_i = 0;
 
-  while ((large_page_size= my_next_large_page_size(size, &page_i)))
+  while ((large_page_size= my_next_large_page_size(*size, &page_i)))
   {
     mapflag = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | my_bit_log2(large_page_size) << MAP_HUGE_SHIFT;
     /* mmap adjusts the size to the hugetlb page size so no adjustment is needed */
-    ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, mapflag, -1, 0);
+    ptr = mmap(NULL, *size, PROT_READ | PROT_WRITE, mapflag, -1, 0);
     if (ptr == (void*) -1)
     {
       ptr = NULL;
@@ -193,8 +194,8 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
       if (my_flags & MY_WME)
       {
         fprintf(stderr,
-                "Warning: Failed to allocate %zd bytes from HugeTLB memory (page size %zd)."
-                " errno %d\n", size, large_page_size, errno);
+                "Warning: Failed to allocate %zu bytes from HugeTLB memory (page size %zu)."
+                " errno %d\n", *size, large_page_size, errno);
         if (errno == 22) /* EINVAL */
           fprintf(stderr, "Warning: your allocation has exceeded sysctl kernel.shmall or kernel.shmmax\n");
       }
@@ -202,6 +203,7 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
     }
     else
     {
+      *size = my_2pow_round(*size + (large_page_size - 1), large_page_size);;
       DBUG_RETURN(ptr);
     }
   }
@@ -209,8 +211,8 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   if (!large_page_size)
   {
     if (my_flags & MY_WME)
-      fprintf(stderr, "Warning: Failed to allocate %zd bytes from HugeTLB memory,"
-              " no large pages with sufficent memory\n", size);
+      fprintf(stderr, "Warning: Failed to allocate %zu bytes from HugeTLB memory,"
+              " no large pages with sufficent memory\n", *size);
   }
   DBUG_RETURN(NULL);
 
@@ -218,14 +220,14 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
 
 /* Linux-specific large pages deallocator */
 
-my_bool my_large_free_int(uchar *ptr, size_t size)
+my_bool my_large_free_int(void *ptr, size_t size)
 {
   DBUG_ENTER("my_large_free_int");
   if (munmap(ptr, size))
   {
     if (errno != EINVAL || 1)
     {
-      fprintf(stderr, "Warning: Failed to unmap %zd bytes from HugeTLB memory, errno %d\n", size, errno);
+      fprintf(stderr, "Warning: Failed to unmap %zu bytes from HugeTLB memory, errno %d\n", size, errno);
     }
     DBUG_RETURN(1);
   }

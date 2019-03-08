@@ -838,7 +838,7 @@ size_t init_pagecache(PAGECACHE *pagecache, size_t use_mem,
     {
       pagecache->mem_size= blocks * pagecache->block_size;
     }
-    if ((pagecache->block_mem= my_large_malloc(pagecache->mem_size, MYF(0))))
+    if ((pagecache->block_mem= my_large_malloc(&pagecache->mem_size, MYF(0))))
     {
       /*
         Allocate memory for blocks, hash_links and hash entries;
