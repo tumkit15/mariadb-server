@@ -34,6 +34,7 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 #define OS_MAP_ANON	MAP_ANON
 #endif
 
+#include <my_sys.h> /* for my_use_large_pages */
 #include "my_bit.h"
 
 /** The total amount of memory currently allocated from the operating
